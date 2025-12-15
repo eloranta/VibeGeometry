@@ -48,4 +48,9 @@ private:
 
     void loadPointsFromFile();
     void savePointsToFile() const;
+    void addIntersectionPoint(const QPointF &pt);
+    QString nextPointLabel() const;
+    std::pair<QPointF, QPointF> lineEndpoints(const LineEntry &line) const;
+    void findIntersectionsForLine(int lineIndex);
+    void findIntersectionsForCircle(int circleIndex);
 };

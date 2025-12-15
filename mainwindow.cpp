@@ -105,6 +105,7 @@ void MainWindow::onAddLineClicked() {
     if (!canvas_->addLineBetweenSelected()) {
         QMessageBox::information(this, "Line Exists", "A line between those points already exists.");
     }
+    pointCounter_ = canvas_->pointCount() + 1;
 }
 
 void MainWindow::onExtendLineClicked() {
@@ -115,6 +116,7 @@ void MainWindow::onExtendLineClicked() {
     if (!canvas_->extendSelectedLines()) {
         QMessageBox::information(this, "Extend Line", "No lines were extended (they may already be extended).");
     }
+    pointCounter_ = canvas_->pointCount() + 1;
 }
 
 void MainWindow::onAddCircleClicked() {
@@ -146,5 +148,6 @@ void MainWindow::onAddCircleClicked() {
             return;
         }
         canvas_->addCircle(center, r);
+        pointCounter_ = canvas_->pointCount() + 1;
     }
 }

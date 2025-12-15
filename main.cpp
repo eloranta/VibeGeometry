@@ -6,7 +6,7 @@ int main(int argc, char *argv[]) {
 
     MainWindow window;
     window.setWindowTitle("VibeGeometry");
-    window.resize(420, 320);
+    window.resize(840, 640);
     window.show();
 
     return app.exec();

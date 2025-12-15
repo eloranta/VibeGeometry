@@ -67,10 +67,27 @@ bool CanvasWidget::addLineBetweenSelected() {
             return false;
         }
     }
-    lines_.append({a, b});
+    lines_.append({a, b, false});
     savePointsToFile();
     update();
     return true;
+}
+
+bool CanvasWidget::extendSelectedLines() {
+    bool changed = false;
+    for (int idx : selectedLineIndices_) {
+        if (idx >= 0 && idx < lines_.size()) {
+            if (!lines_[idx].extended) {
+                lines_[idx].extended = true;
+                changed = true;
+            }
+        }
+    }
+    if (changed) {
+        savePointsToFile();
+        update();
+    }
+    return changed;
 }
 
 void CanvasWidget::paintEvent(QPaintEvent *event) {
@@ -116,8 +133,65 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
         QPointF p1 = points_[line.a].pos;
         QPointF p2 = points_[line.b].pos;
         bool selected = selectedLineIndices_.contains(i);
-        painter.setPen(QPen(selected ? Qt::darkBlue : Qt::blue, selected ? 4 : 2));
-        painter.drawLine(map(p1.x(), p1.y()), map(p2.x(), p2.y()));
+        auto drawSegment = [&](const QPointF &a, const QPointF &b) {
+            painter.setPen(QPen(selected ? Qt::darkBlue : Qt::blue, selected ? 4 : 2));
+            painter.drawLine(map(a.x(), a.y()), map(b.x(), b.y()));
+        };
+
+        if (!line.extended) {
+            drawSegment(p1, p2);
+        } else {
+            // Compute intersection with bounding box [-5,5] x [-5,5]
+            const double xmin = -5.0, xmax = 5.0, ymin = -5.0, ymax = 5.0;
+            const double dx = p2.x() - p1.x();
+            const double dy = p2.y() - p1.y();
+            QVector<QPointF> hits;
+            auto addIfInside = [&](double x, double y) {
+                if (x >= xmin - 1e-9 && x <= xmax + 1e-9 && y >= ymin - 1e-9 && y <= ymax + 1e-9) {
+                    hits.append(QPointF(x, y));
+                }
+            };
+            if (std::abs(dx) > 1e-9) {
+                double t1 = (xmin - p1.x()) / dx;
+                addIfInside(xmin, p1.y() + t1 * dy);
+                double t2 = (xmax - p1.x()) / dx;
+                addIfInside(xmax, p1.y() + t2 * dy);
+            }
+            if (std::abs(dy) > 1e-9) {
+                double t3 = (ymin - p1.y()) / dy;
+                addIfInside(p1.x() + t3 * dx, ymin);
+                double t4 = (ymax - p1.y()) / dy;
+                addIfInside(p1.x() + t4 * dx, ymax);
+            }
+            // Remove duplicates
+            QVector<QPointF> uniqueHits;
+            auto isClose = [](const QPointF &a, const QPointF &b) {
+                return std::hypot(a.x() - b.x(), a.y() - b.y()) < 1e-6;
+            };
+            for (const auto &h : hits) {
+                bool dup = false;
+                for (const auto &u : uniqueHits) {
+                    if (isClose(h, u)) {
+                        dup = true;
+                        break;
+                    }
+                }
+                if (!dup) uniqueHits.append(h);
+            }
+            if (uniqueHits.size() >= 2) {
+                // Sort by projection along direction
+                QVector<std::pair<double, QPointF>> proj;
+                if (std::abs(dx) >= std::abs(dy)) {
+                    for (const auto &h : uniqueHits) proj.append({ (h.x() - p1.x()) / dx, h });
+                } else {
+                    for (const auto &h : uniqueHits) proj.append({ (h.y() - p1.y()) / dy, h });
+                }
+                std::sort(proj.begin(), proj.end(), [](const auto &a, const auto &b){ return a.first < b.first; });
+                drawSegment(proj.front().second, proj.back().second);
+            } else {
+                drawSegment(p1, p2);
+            }
+        }
     }
 
     const double radiusPixels = 4.0;
@@ -257,8 +331,9 @@ void CanvasWidget::loadPointsFromFile() {
         const auto obj = value.toObject();
         int a = obj.value("a").toInt(-1);
         int b = obj.value("b").toInt(-1);
+        bool extended = obj.value("extended").toBool(false);
         if (a >= 0 && b >= 0) {
-            lines_.append({a, b});
+            lines_.append({a, b, extended});
         }
     }
 }
@@ -280,6 +355,7 @@ void CanvasWidget::savePointsToFile() const {
         QJsonObject obj;
         obj.insert("a", line.a);
         obj.insert("b", line.b);
+        obj.insert("extended", line.extended);
         linesArr.append(obj);
     }
     QJsonObject root;

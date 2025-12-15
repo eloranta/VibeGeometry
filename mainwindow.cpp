@@ -108,6 +108,11 @@ void MainWindow::onAddLineClicked() {
 }
 
 void MainWindow::onExtendLineClicked() {
-    // Placeholder: functionality not implemented yet.
-    QMessageBox::information(this, "Extend Line", "Extend Line is not implemented yet.");
+    if (canvas_->selectedLineCount() < 1) {
+        QMessageBox::information(this, "Select Line", "Select at least one line to extend (click or Ctrl+click).");
+        return;
+    }
+    if (!canvas_->extendSelectedLines()) {
+        QMessageBox::information(this, "Extend Line", "No lines were extended (they may already be extended).");
+    }
 }

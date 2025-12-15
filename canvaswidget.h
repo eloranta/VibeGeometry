@@ -15,6 +15,7 @@ public:
     bool hasPoint(const QPointF &point) const;
     int pointCount() const;
     bool addLineBetweenSelected();
+    bool extendSelectedLines();
     int selectedCount() const;
     int selectedLineCount() const;
 
@@ -30,6 +31,7 @@ private:
     struct LineEntry {
         int a;
         int b;
+        bool extended = false;
     };
     QVector<PointEntry> points_;
     QVector<LineEntry> lines_;

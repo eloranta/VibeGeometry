@@ -19,6 +19,7 @@ public:
     bool addCircle(const QPointF &center, double radius);
     bool selectedPoint(QPointF &point) const;
     bool deleteSelected();
+    void deleteAll();
     int selectedCount() const;
     int selectedLineCount() const;
     int selectedCircleCount() const;

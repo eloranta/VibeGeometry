@@ -19,4 +19,5 @@ private:
     void onExtendLineClicked();
     void onAddCircleClicked();
     void onDeleteClicked();
+    void onDeleteAllClicked();
 };

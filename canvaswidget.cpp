@@ -317,6 +317,20 @@ bool CanvasWidget::deleteSelected() {
     return changed;
 }
 
+void CanvasWidget::deleteAll() {
+    if (points_.isEmpty() && lines_.isEmpty() && circles_.isEmpty()) {
+        return;
+    }
+    points_.clear();
+    lines_.clear();
+    circles_.clear();
+    selectedIndices_.clear();
+    selectedLineIndices_.clear();
+    selectedCircleIndices_.clear();
+    savePointsToFile();
+    update();
+}
+
 void CanvasWidget::findIntersectionsForLine(int lineIndex) {
     if (lineIndex < 0 || lineIndex >= lines_.size()) return;
     auto [a1, a2] = lineEndpoints(lines_[lineIndex]);

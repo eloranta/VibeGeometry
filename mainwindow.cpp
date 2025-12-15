@@ -36,11 +36,13 @@ MainWindow::MainWindow(QWidget *parent)
     auto *extendLineBtn = new QPushButton("Extend Line", central);
     auto *addCircleBtn = new QPushButton("Add Circle", central);
     auto *deleteBtn = new QPushButton("Delete", central);
+    auto *deleteAllBtn = new QPushButton("Delete All", central);
     controls->addWidget(addPointBtn);
     controls->addWidget(addLineBtn);
     controls->addWidget(extendLineBtn);
     controls->addWidget(addCircleBtn);
     controls->addWidget(deleteBtn);
+    controls->addWidget(deleteAllBtn);
     controls->addStretch(1);
     layout->addLayout(controls);
 
@@ -49,6 +51,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(extendLineBtn, &QPushButton::clicked, this, &MainWindow::onExtendLineClicked);
     connect(addCircleBtn, &QPushButton::clicked, this, &MainWindow::onAddCircleClicked);
     connect(deleteBtn, &QPushButton::clicked, this, &MainWindow::onDeleteClicked);
+    connect(deleteAllBtn, &QPushButton::clicked, this, &MainWindow::onDeleteAllClicked);
 
     setCentralWidget(central);
 }
@@ -160,5 +163,10 @@ void MainWindow::onDeleteClicked() {
         QMessageBox::information(this, "Delete", "No selected objects to delete.");
         return;
     }
+    pointCounter_ = canvas_->pointCount() + 1;
+}
+
+void MainWindow::onDeleteAllClicked() {
+    canvas_->deleteAll();
     pointCounter_ = canvas_->pointCount() + 1;
 }

@@ -13,6 +13,11 @@ void CanvasWidget::addLine(const QPointF &start, const QPointF &end) {
     update();
 }
 
+void CanvasWidget::addCircle(const QPointF &center, double radius) {
+    circles_.append(qMakePair(center, radius));
+    update();
+}
+
 void CanvasWidget::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
 
@@ -52,5 +57,15 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
     painter.setPen(QPen(Qt::blue, 2));
     for (const auto &line : lines_) {
         painter.drawLine(map(line.p1().x(), line.p1().y()), map(line.p2().x(), line.p2().y()));
+    }
+
+    painter.setPen(QPen(Qt::darkGreen, 2));
+    for (const auto &circle : circles_) {
+        const QPointF &c = circle.first;
+        double r = circle.second;
+        QPointF topLeft = map(c.x() - r, c.y() + r);
+        QPointF bottomRight = map(c.x() + r, c.y() - r);
+        QRectF ellipseRect(topLeft, bottomRight);
+        painter.drawEllipse(ellipseRect);
     }
 }

@@ -15,4 +15,5 @@ private:
     CanvasWidget *canvas_ = nullptr;
 
     void showAddLineDialog();
+    void showAddCircleDialog();
 };

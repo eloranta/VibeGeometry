@@ -33,6 +33,7 @@ MainWindow::MainWindow(QWidget *parent)
     layout->addLayout(controls);
 
     connect(addLineBtn, &QPushButton::clicked, this, &MainWindow::showAddLineDialog);
+    connect(addCircleBtn, &QPushButton::clicked, this, &MainWindow::showAddCircleDialog);
 
     setCentralWidget(central);
 }
@@ -72,5 +73,43 @@ void MainWindow::showAddLineDialog() {
 
     if (dialog.exec() == QDialog::Accepted) {
         canvas_->addLine(QPointF(x1->value(), y1->value()), QPointF(x2->value(), y2->value()));
+    }
+}
+
+void MainWindow::showAddCircleDialog() {
+    QDialog dialog(this);
+    dialog.setWindowTitle("Add Circle");
+
+    auto *form = new QFormLayout(&dialog);
+    auto *cx = new QDoubleSpinBox(&dialog);
+    auto *cy = new QDoubleSpinBox(&dialog);
+    auto *radius = new QDoubleSpinBox(&dialog);
+
+    const double min = -1000.0;
+    const double max = 1000.0;
+    for (auto *spin : {cx, cy}) {
+        spin->setRange(min, max);
+        spin->setDecimals(3);
+        spin->setSingleStep(0.1);
+    }
+    radius->setRange(0.0, max);
+    radius->setDecimals(3);
+    radius->setSingleStep(0.1);
+
+    cx->setValue(0.0);
+    cy->setValue(0.0);
+    radius->setValue(1.0);
+
+    form->addRow("Center X (-5..5):", cx);
+    form->addRow("Center Y (-5..5):", cy);
+    form->addRow("Radius (>0):", radius);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    form->addWidget(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        canvas_->addCircle(QPointF(cx->value(), cy->value()), radius->value());
     }
 }

@@ -115,6 +115,10 @@ int CanvasWidget::selectedLineCount() const {
     return selectedLineIndices_.size();
 }
 
+int CanvasWidget::selectedCircleCount() const {
+    return selectedCircleIndices_.size();
+}
+
 QString CanvasWidget::nextPointLabel() const {
     return QString("P%1").arg(points_.size() + 1);
 }
@@ -284,14 +288,29 @@ bool CanvasWidget::deleteSelected() {
         newLines.append({na, nb, line.extended});
     }
 
+    QVector<CircleEntry> newCircles;
+    for (int i = 0; i < circles_.size(); ++i) {
+        if (selectedCircleIndices_.contains(i)) {
+            changed = true;
+            continue;
+        }
+        newCircles.append(circles_[i]);
+    }
+
     if (!removePoints.isEmpty()) {
         points_.swap(newPoints);
         changed = true;
+    }
+    if (selectedCircleIndices_.size() > 0) {
+        circles_.swap(newCircles);
+    } else if (newCircles.size() != circles_.size()) {
+        circles_.swap(newCircles);
     }
     if (changed) {
         lines_.swap(newLines);
         selectedIndices_.clear();
         selectedLineIndices_.clear();
+        selectedCircleIndices_.clear();
         savePointsToFile();
         update();
     }
@@ -389,7 +408,10 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
     }
 
     painter.setPen(QPen(Qt::darkGreen, 2));
-    for (const auto &circle : circles_) {
+    for (int i = 0; i < circles_.size(); ++i) {
+        const auto &circle = circles_[i];
+        bool selected = selectedCircleIndices_.contains(i);
+        painter.setPen(QPen(selected ? Qt::darkGreen : Qt::darkGreen, selected ? 3 : 2, selected ? Qt::DashLine : Qt::SolidLine));
         QPointF topLeft = map(circle.center.x() - circle.radius, circle.center.y() + circle.radius);
         QPointF bottomRight = map(circle.center.x() + circle.radius, circle.center.y() - circle.radius);
         painter.drawEllipse(QRectF(topLeft, bottomRight));
@@ -470,6 +492,20 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         }
     }
 
+    int hitCircle = -1;
+    double bestCircleDist = tolerancePx;
+    for (int i = 0; i < circles_.size(); ++i) {
+        const auto &c = circles_[i];
+        QPointF mappedCenter = map(c.center);
+        double rpx = c.radius * (scale);  // radius in pixels
+        double dist = std::abs(std::hypot(event->position().x() - mappedCenter.x(),
+                                         event->position().y() - mappedCenter.y()) - rpx);
+        if (dist <= bestCircleDist) {
+            bestCircleDist = dist;
+            hitCircle = i;
+        }
+    }
+
     bool ctrl = event->modifiers().testFlag(Qt::ControlModifier);
     if (hitPoint >= 0) {
         if (ctrl) {
@@ -479,6 +515,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             selectedIndices_.clear();
             selectedIndices_.insert(hitPoint);
             selectedLineIndices_.clear();
+            selectedCircleIndices_.clear();
         }
     } else if (hitLine >= 0) {
         if (ctrl) {
@@ -488,10 +525,22 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             selectedLineIndices_.clear();
             selectedLineIndices_.insert(hitLine);
             selectedIndices_.clear();
+            selectedCircleIndices_.clear();
+        }
+    } else if (hitCircle >= 0) {
+        if (ctrl) {
+            if (selectedCircleIndices_.contains(hitCircle)) selectedCircleIndices_.remove(hitCircle);
+            else selectedCircleIndices_.insert(hitCircle);
+        } else {
+            selectedCircleIndices_.clear();
+            selectedCircleIndices_.insert(hitCircle);
+            selectedIndices_.clear();
+            selectedLineIndices_.clear();
         }
     } else if (!ctrl) {
         selectedIndices_.clear();
         selectedLineIndices_.clear();
+        selectedCircleIndices_.clear();
     }
     update();
     QWidget::mousePressEvent(event);

@@ -21,6 +21,7 @@ public:
     bool deleteSelected();
     int selectedCount() const;
     int selectedLineCount() const;
+    int selectedCircleCount() const;
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -46,6 +47,7 @@ private:
     QString storagePath_;
     QSet<int> selectedIndices_;
     QSet<int> selectedLineIndices_;
+    QSet<int> selectedCircleIndices_;
 
     void loadPointsFromFile();
     void savePointsToFile() const;

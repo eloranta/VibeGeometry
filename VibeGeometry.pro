@@ -7,7 +7,9 @@ TARGET = VibeGeometry
 
 SOURCES += \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    canvaswidget.cpp
 
 HEADERS += \
-    mainwindow.h
+    mainwindow.h \
+    canvaswidget.h

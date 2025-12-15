@@ -4,6 +4,8 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include "canvaswidget.h"
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent) {
     auto *central = new QWidget(this);
@@ -22,9 +24,11 @@ MainWindow::MainWindow(QWidget *parent)
     subtitle->setAlignment(Qt::AlignCenter);
     subtitle->setWordWrap(true);
 
+    canvas_ = new CanvasWidget(central);
+
     layout->addWidget(title);
     layout->addWidget(subtitle);
-    layout->addStretch(1);
+    layout->addWidget(canvas_, 1);
 
     setCentralWidget(central);
 }

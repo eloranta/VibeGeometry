@@ -14,7 +14,7 @@ public:
     bool addPoint(const QPointF &point, const QString &label);
     bool hasPoint(const QPointF &point) const;
     int pointCount() const;
-    bool addLineBetweenSelected();
+    bool addLineBetweenSelected(const QString &label = QString());
     bool extendSelectedLines();
     bool addCircle(const QPointF &center, double radius);
     bool selectedPoint(QPointF &point) const;
@@ -23,6 +23,7 @@ public:
     int selectedCount() const;
     int selectedLineCount() const;
     int selectedCircleCount() const;
+    QString suggestedLineLabel() const;
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -37,6 +38,7 @@ private:
         int a;
         int b;
         bool extended = false;
+        QString label;
     };
     struct CircleEntry {
         QPointF center;
@@ -54,6 +56,7 @@ private:
     void savePointsToFile() const;
     void addIntersectionPoint(const QPointF &pt);
     QString nextPointLabel() const;
+    QString nextLineLabel() const;
     std::pair<QPointF, QPointF> lineEndpoints(const LineEntry &line) const;
     void findIntersectionsForLine(int lineIndex);
     void findIntersectionsForCircle(int circleIndex);

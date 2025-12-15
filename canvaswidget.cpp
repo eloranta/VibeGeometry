@@ -123,6 +123,14 @@ QString CanvasWidget::nextPointLabel() const {
     return QString("P%1").arg(points_.size() + 1);
 }
 
+QString CanvasWidget::nextLineLabel() const {
+    return QString("L%1").arg(lines_.size() + 1);
+}
+
+QString CanvasWidget::suggestedLineLabel() const {
+    return nextLineLabel();
+}
+
 void CanvasWidget::addIntersectionPoint(const QPointF &pt) {
     if (!hasPoint(pt)) {
         addPoint(pt, nextPointLabel());
@@ -197,7 +205,7 @@ bool CanvasWidget::selectedPoint(QPointF &point) const {
     return true;
 }
 
-bool CanvasWidget::addLineBetweenSelected() {
+bool CanvasWidget::addLineBetweenSelected(const QString &label) {
     if (selectedIndices_.size() < 2) {
         return false;
     }
@@ -213,7 +221,8 @@ bool CanvasWidget::addLineBetweenSelected() {
             return false;
         }
     }
-    lines_.append({a, b, false});
+    QString useLabel = label.isEmpty() ? nextLineLabel() : label;
+    lines_.append({a, b, false, useLabel});
     findIntersectionsForLine(lines_.size() - 1);
     savePointsToFile();
     update();
@@ -285,7 +294,7 @@ bool CanvasWidget::deleteSelected() {
             changed = true;
             continue;
         }
-        newLines.append({na, nb, line.extended});
+        newLines.append({na, nb, line.extended, line.label});
     }
 
     QVector<CircleEntry> newCircles;
@@ -419,6 +428,15 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
         bool selected = selectedLineIndices_.contains(i);
         painter.setPen(QPen(selected ? Qt::darkBlue : Qt::blue, selected ? 4 : 2));
         painter.drawLine(map(p1.x(), p1.y()), map(p2.x(), p2.y()));
+        // Label at midpoint
+        QPointF mid = (p1 + p2) / 2.0;
+        painter.setPen(Qt::black);
+        painter.setFont([&]{
+            QFont f = painter.font();
+            f.setPointSizeF(9.0);
+            return f;
+        }());
+        painter.drawText(map(mid.x(), mid.y()) + QPointF(6, -6), line.label);
     }
 
     painter.setPen(QPen(Qt::darkGreen, 2));
@@ -598,8 +616,10 @@ void CanvasWidget::loadPointsFromFile() {
         int a = obj.value("a").toInt(-1);
         int b = obj.value("b").toInt(-1);
         bool extended = obj.value("extended").toBool(false);
+        QString label = obj.value("label").toString();
+        if (label.isEmpty()) label = nextLineLabel();
         if (a >= 0 && b >= 0) {
-            lines_.append({a, b, extended});
+            lines_.append({a, b, extended, label});
         }
     }
     QJsonArray circlesArr = root.value("circles").toArray();
@@ -633,6 +653,7 @@ void CanvasWidget::savePointsToFile() const {
         obj.insert("a", line.a);
         obj.insert("b", line.b);
         obj.insert("extended", line.extended);
+        obj.insert("label", line.label);
         linesArr.append(obj);
     }
     QJsonArray circlesArr;

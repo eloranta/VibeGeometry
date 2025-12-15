@@ -1,6 +1,5 @@
 #include "mainwindow.h"
 
-#include <QLabel>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -13,21 +12,8 @@ MainWindow::MainWindow(QWidget *parent)
     layout->setContentsMargins(16, 16, 16, 16);
     layout->setSpacing(12);
 
-    auto *title = new QLabel("VibeGeometry", central);
-    title->setAlignment(Qt::AlignCenter);
-    QFont titleFont = title->font();
-    titleFont.setPointSize(18);
-    titleFont.setBold(true);
-    title->setFont(titleFont);
-
-    auto *subtitle = new QLabel("Starter Qt 6 widget project ready for your geometry visuals.", central);
-    subtitle->setAlignment(Qt::AlignCenter);
-    subtitle->setWordWrap(true);
-
     canvas_ = new CanvasWidget(central);
 
-    layout->addWidget(title);
-    layout->addWidget(subtitle);
     layout->addWidget(canvas_, 1);
 
     setCentralWidget(central);

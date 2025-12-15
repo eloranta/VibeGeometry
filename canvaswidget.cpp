@@ -245,6 +245,59 @@ bool CanvasWidget::addCircle(const QPointF &center, double radius) {
     return true;
 }
 
+bool CanvasWidget::deleteSelected() {
+    bool changed = false;
+    QSet<int> removePoints = selectedIndices_;
+    QVector<int> indexMap(points_.size(), -1);
+    QVector<PointEntry> newPoints;
+    if (!removePoints.isEmpty()) {
+        for (int i = 0; i < points_.size(); ++i) {
+            if (removePoints.contains(i)) {
+                continue;
+            }
+            indexMap[i] = newPoints.size();
+            newPoints.append(points_[i]);
+        }
+    } else {
+        for (int i = 0; i < points_.size(); ++i) {
+            indexMap[i] = i;
+        }
+    }
+
+    QVector<LineEntry> newLines;
+    for (int i = 0; i < lines_.size(); ++i) {
+        const auto &line = lines_[i];
+        if (selectedLineIndices_.contains(i)) {
+            changed = true;
+            continue;
+        }
+        if (removePoints.contains(line.a) || removePoints.contains(line.b)) {
+            changed = true;
+            continue;
+        }
+        int na = indexMap[line.a];
+        int nb = indexMap[line.b];
+        if (na < 0 || nb < 0) {
+            changed = true;
+            continue;
+        }
+        newLines.append({na, nb, line.extended});
+    }
+
+    if (!removePoints.isEmpty()) {
+        points_.swap(newPoints);
+        changed = true;
+    }
+    if (changed) {
+        lines_.swap(newLines);
+        selectedIndices_.clear();
+        selectedLineIndices_.clear();
+        savePointsToFile();
+        update();
+    }
+    return changed;
+}
+
 void CanvasWidget::findIntersectionsForLine(int lineIndex) {
     if (lineIndex < 0 || lineIndex >= lines_.size()) return;
     auto [a1, a2] = lineEndpoints(lines_[lineIndex]);

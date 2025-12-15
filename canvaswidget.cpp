@@ -1,21 +1,43 @@
 #include "canvaswidget.h"
 
 #include <QPainter>
+#include <QtMath>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QDir>
+#include <QFileInfo>
 #include <algorithm>
 
-CanvasWidget::CanvasWidget(QWidget *parent)
-    : QWidget(parent) {
+CanvasWidget::CanvasWidget(const QString &storagePath, QWidget *parent)
+    : QWidget(parent),
+      storagePath_(storagePath) {
     setMinimumSize(320, 240);
+    loadPointsFromFile();
 }
 
-void CanvasWidget::addLine(const QPointF &start, const QPointF &end) {
-    lines_.append(QLineF(start, end));
+bool CanvasWidget::addPoint(const QPointF &point, const QString &label) {
+    if (hasPoint(point)) {
+        return false;
+    }
+    points_.append({point, label});
+    savePointsToFile();
     update();
+    return true;
 }
 
-void CanvasWidget::addCircle(const QPointF &center, double radius) {
-    circles_.append(qMakePair(center, radius));
-    update();
+bool CanvasWidget::hasPoint(const QPointF &point) const {
+    for (const auto &p : points_) {
+        if (qFuzzyCompare(p.pos.x(), point.x()) && qFuzzyCompare(p.pos.y(), point.y())) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int CanvasWidget::pointCount() const {
+    return points_.size();
 }
 
 void CanvasWidget::paintEvent(QPaintEvent *event) {
@@ -54,18 +76,70 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
         painter.drawLine(p3, p4);
     }
 
-    painter.setPen(QPen(Qt::blue, 2));
-    for (const auto &line : lines_) {
-        painter.drawLine(map(line.p1().x(), line.p1().y()), map(line.p2().x(), line.p2().y()));
+    painter.setBrush(Qt::red);
+    painter.setPen(QPen(Qt::red, 2));
+    const double radiusPixels = 4.0;
+    painter.setFont([&]{
+        QFont f = painter.font();
+        f.setPointSizeF(9.0);
+        return f;
+    }());
+    for (const auto &entry : points_) {
+        QPointF mapped = map(entry.pos.x(), entry.pos.y());
+        painter.drawEllipse(mapped, radiusPixels, radiusPixels);
+        painter.setPen(Qt::black);
+        painter.drawText(mapped + QPointF(6, -6), entry.label);
+        painter.setPen(QPen(Qt::red, 2));
     }
+}
 
-    painter.setPen(QPen(Qt::darkGreen, 2));
-    for (const auto &circle : circles_) {
-        const QPointF &c = circle.first;
-        double r = circle.second;
-        QPointF topLeft = map(c.x() - r, c.y() + r);
-        QPointF bottomRight = map(c.x() + r, c.y() - r);
-        QRectF ellipseRect(topLeft, bottomRight);
-        painter.drawEllipse(ellipseRect);
+void CanvasWidget::loadPointsFromFile() {
+    if (storagePath_.isEmpty()) {
+        return;
+    }
+    QFile file(storagePath_);
+    if (!file.exists()) {
+        return;
+    }
+    if (!file.open(QIODevice::ReadOnly)) {
+        return;
+    }
+    const auto data = file.readAll();
+    file.close();
+    auto doc = QJsonDocument::fromJson(data);
+    if (!doc.isArray()) {
+        return;
+    }
+    points_.clear();
+    for (const auto &value : doc.array()) {
+        if (!value.isObject()) continue;
+        const auto obj = value.toObject();
+        double x = obj.value("x").toDouble();
+        double y = obj.value("y").toDouble();
+        QString label = obj.value("label").toString();
+        if (label.isEmpty()) label = QStringLiteral("P");
+        points_.append({QPointF(x, y), label});
+    }
+}
+
+void CanvasWidget::savePointsToFile() const {
+    if (storagePath_.isEmpty()) {
+        return;
+    }
+    QJsonArray arr;
+    for (const auto &entry : points_) {
+        QJsonObject obj;
+        obj.insert("x", entry.pos.x());
+        obj.insert("y", entry.pos.y());
+        obj.insert("label", entry.label);
+        arr.append(obj);
+    }
+    QJsonDocument doc(arr);
+
+    QDir().mkpath(QFileInfo(storagePath_).absolutePath());
+    QFile file(storagePath_);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        file.write(doc.toJson(QJsonDocument::Indented));
+        file.close();
     }
 }

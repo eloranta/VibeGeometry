@@ -5,10 +5,14 @@
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QPointF>
+#include <QCoreApplication>
+#include <QDir>
 
 #include "canvaswidget.h"
 
@@ -19,52 +23,54 @@ MainWindow::MainWindow(QWidget *parent)
     layout->setContentsMargins(16, 16, 16, 16);
     layout->setSpacing(12);
 
-    canvas_ = new CanvasWidget(central);
+    QDir appDir(QCoreApplication::applicationDirPath());
+    const QString storagePath = appDir.filePath("points.json");
+    canvas_ = new CanvasWidget(storagePath, central);
 
     layout->addWidget(canvas_, 1);
+    pointCounter_ = canvas_->pointCount() + 1;
     auto *controls = new QHBoxLayout();
     controls->setSpacing(8);
+    auto *addPointBtn = new QPushButton("Add Point", central);
     auto *addLineBtn = new QPushButton("Add Line", central);
     auto *addCircleBtn = new QPushButton("Add Circle", central);
+    controls->addWidget(addPointBtn);
     controls->addStretch(1);
     controls->addWidget(addLineBtn);
     controls->addWidget(addCircleBtn);
     controls->addStretch(1);
     layout->addLayout(controls);
 
-    connect(addLineBtn, &QPushButton::clicked, this, &MainWindow::showAddLineDialog);
-    connect(addCircleBtn, &QPushButton::clicked, this, &MainWindow::showAddCircleDialog);
+    connect(addPointBtn, &QPushButton::clicked, this, &MainWindow::showAddPointDialog);
 
     setCentralWidget(central);
 }
 
-void MainWindow::showAddLineDialog() {
+void MainWindow::showAddPointDialog() {
     QDialog dialog(this);
-    dialog.setWindowTitle("Add Line");
+    dialog.setWindowTitle("Add Point");
 
     auto *form = new QFormLayout(&dialog);
-    auto *x1 = new QDoubleSpinBox(&dialog);
-    auto *y1 = new QDoubleSpinBox(&dialog);
-    auto *x2 = new QDoubleSpinBox(&dialog);
-    auto *y2 = new QDoubleSpinBox(&dialog);
+    auto *x = new QDoubleSpinBox(&dialog);
+    auto *y = new QDoubleSpinBox(&dialog);
+    auto *labelEdit = new QLineEdit(&dialog);
 
     const double min = -1000.0;
     const double max = 1000.0;
-    for (auto *spin : {x1, y1, x2, y2}) {
+    for (auto *spin : {x, y}) {
         spin->setRange(min, max);
         spin->setDecimals(3);
         spin->setSingleStep(0.1);
     }
 
-    x1->setValue(-1.0);
-    y1->setValue(0.0);
-    x2->setValue(1.0);
-    y2->setValue(0.0);
+    x->setValue(0.0);
+    y->setValue(0.0);
+    labelEdit->setText(QString("P%1").arg(pointCounter_));
+    labelEdit->setMaxLength(16);
 
-    form->addRow("Start X (-5..5):", x1);
-    form->addRow("Start Y (-5..5):", y1);
-    form->addRow("End X (-5..5):", x2);
-    form->addRow("End Y (-5..5):", y2);
+    form->addRow("X (-5..5):", x);
+    form->addRow("Y (-5..5):", y);
+    form->addRow("Label:", labelEdit);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     form->addWidget(buttons);
@@ -72,44 +78,17 @@ void MainWindow::showAddLineDialog() {
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
     if (dialog.exec() == QDialog::Accepted) {
-        canvas_->addLine(QPointF(x1->value(), y1->value()), QPointF(x2->value(), y2->value()));
-    }
-}
-
-void MainWindow::showAddCircleDialog() {
-    QDialog dialog(this);
-    dialog.setWindowTitle("Add Circle");
-
-    auto *form = new QFormLayout(&dialog);
-    auto *cx = new QDoubleSpinBox(&dialog);
-    auto *cy = new QDoubleSpinBox(&dialog);
-    auto *radius = new QDoubleSpinBox(&dialog);
-
-    const double min = -1000.0;
-    const double max = 1000.0;
-    for (auto *spin : {cx, cy}) {
-        spin->setRange(min, max);
-        spin->setDecimals(3);
-        spin->setSingleStep(0.1);
-    }
-    radius->setRange(0.0, max);
-    radius->setDecimals(3);
-    radius->setSingleStep(0.1);
-
-    cx->setValue(0.0);
-    cy->setValue(0.0);
-    radius->setValue(1.0);
-
-    form->addRow("Center X (-5..5):", cx);
-    form->addRow("Center Y (-5..5):", cy);
-    form->addRow("Radius (>0):", radius);
-
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
-    form->addWidget(buttons);
-    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-
-    if (dialog.exec() == QDialog::Accepted) {
-        canvas_->addCircle(QPointF(cx->value(), cy->value()), radius->value());
+        QString label = labelEdit->text().trimmed();
+        if (label.isEmpty()) {
+            label = QString("P%1").arg(pointCounter_);
+        }
+        QPointF pt(x->value(), y->value());
+        if (canvas_->hasPoint(pt)) {
+            QMessageBox::information(this, "Point Exists", "A point at these coordinates already exists.");
+            return;
+        }
+        if (canvas_->addPoint(pt, label)) {
+            ++pointCounter_;
+        }
     }
 }

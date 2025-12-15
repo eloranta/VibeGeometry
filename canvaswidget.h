@@ -2,22 +2,28 @@
 
 #include <QWidget>
 #include <QVector>
-#include <QLineF>
-#include <QPair>
-
+#include <QPointF>
+#include <QString>
 class CanvasWidget : public QWidget {
     Q_OBJECT
 
 public:
-    explicit CanvasWidget(QWidget *parent = nullptr);
-
-    void addLine(const QPointF &start, const QPointF &end);
-    void addCircle(const QPointF &center, double radius);
+    explicit CanvasWidget(const QString &storagePath = QString(), QWidget *parent = nullptr);
+    bool addPoint(const QPointF &point, const QString &label);
+    bool hasPoint(const QPointF &point) const;
+    int pointCount() const;
 
 protected:
     void paintEvent(QPaintEvent *event) override;
 
 private:
-    QVector<QLineF> lines_;
-    QVector<QPair<QPointF, double>> circles_;
+    struct PointEntry {
+        QPointF pos;
+        QString label;
+    };
+    QVector<PointEntry> points_;
+    QString storagePath_;
+
+    void loadPointsFromFile();
+    void savePointsToFile() const;
 };

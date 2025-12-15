@@ -13,7 +13,6 @@ public:
 
 private:
     CanvasWidget *canvas_ = nullptr;
-
-    void showAddLineDialog();
-    void showAddCircleDialog();
+    int pointCounter_ = 1;
+    void showAddPointDialog();
 };

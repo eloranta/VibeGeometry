@@ -8,6 +8,11 @@ CanvasWidget::CanvasWidget(QWidget *parent)
     setMinimumSize(320, 240);
 }
 
+void CanvasWidget::addLine(const QPointF &start, const QPointF &end) {
+    lines_.append(QLineF(start, end));
+    update();
+}
+
 void CanvasWidget::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
 
@@ -42,5 +47,10 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
         QPointF p3 = map(-tickSize / scale / 2.0, i);
         QPointF p4 = map(tickSize / scale / 2.0, i);
         painter.drawLine(p3, p4);
+    }
+
+    painter.setPen(QPen(Qt::blue, 2));
+    for (const auto &line : lines_) {
+        painter.drawLine(map(line.p1().x(), line.p1().y()), map(line.p2().x(), line.p2().y()));
     }
 }

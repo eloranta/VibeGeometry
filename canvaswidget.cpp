@@ -47,6 +47,10 @@ int CanvasWidget::selectedCount() const {
     return selectedIndices_.size();
 }
 
+int CanvasWidget::selectedLineCount() const {
+    return selectedLineIndices_.size();
+}
+
 bool CanvasWidget::addLineBetweenSelected() {
     if (selectedIndices_.size() < 2) {
         return false;
@@ -106,10 +110,13 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
     }
 
     painter.setPen(QPen(Qt::blue, 2));
-    for (const auto &line : lines_) {
+    for (int i = 0; i < lines_.size(); ++i) {
+        const auto &line = lines_[i];
         if (line.a < 0 || line.b < 0 || line.a >= points_.size() || line.b >= points_.size()) continue;
         QPointF p1 = points_[line.a].pos;
         QPointF p2 = points_[line.b].pos;
+        bool selected = selectedLineIndices_.contains(i);
+        painter.setPen(QPen(selected ? Qt::darkBlue : Qt::blue, selected ? 4 : 2));
         painter.drawLine(map(p1.x(), p1.y()), map(p2.x(), p2.y()));
     }
 
@@ -142,7 +149,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         return QPointF(origin.x() + p.x() * scale, origin.y() - p.y() * scale);
     };
 
-    int hitIndex = -1;
+    int hitPoint = -1;
     double bestDist2 = std::numeric_limits<double>::max();
     const double tolerancePx = 8.0;
     const double tol2 = tolerancePx * tolerancePx;
@@ -153,22 +160,62 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         double d2 = dx * dx + dy * dy;
         if (d2 <= tol2 && d2 < bestDist2) {
             bestDist2 = d2;
-            hitIndex = i;
+            hitPoint = i;
         }
     }
-    if (hitIndex >= 0) {
-        if (event->modifiers().testFlag(Qt::ControlModifier)) {
-            if (selectedIndices_.contains(hitIndex)) {
-                selectedIndices_.remove(hitIndex);
-            } else {
-                selectedIndices_.insert(hitIndex);
-            }
+
+    int hitLine = -1;
+    double bestLineDist = tolerancePx;  // threshold in px
+    auto pointToSegmentDistance = [](const QPointF &p, const QPointF &a, const QPointF &b) -> double {
+        const double dx = b.x() - a.x();
+        const double dy = b.y() - a.y();
+        const double len2 = dx * dx + dy * dy;
+        if (len2 == 0.0) {
+            double dxp = p.x() - a.x();
+            double dyp = p.y() - a.y();
+            return std::sqrt(dxp * dxp + dyp * dyp);
+        }
+        double t = ((p.x() - a.x()) * dx + (p.y() - a.y()) * dy) / len2;
+        t = std::clamp(t, 0.0, 1.0);
+        QPointF proj(a.x() + t * dx, a.y() + t * dy);
+        double dxp = p.x() - proj.x();
+        double dyp = p.y() - proj.y();
+        return std::sqrt(dxp * dxp + dyp * dyp);
+    };
+    for (int i = 0; i < lines_.size(); ++i) {
+        const auto &line = lines_[i];
+        if (line.a < 0 || line.b < 0 || line.a >= points_.size() || line.b >= points_.size()) continue;
+        QPointF a = map(points_[line.a].pos);
+        QPointF b = map(points_[line.b].pos);
+        double dist = pointToSegmentDistance(event->position(), a, b);
+        if (dist <= bestLineDist) {
+            bestLineDist = dist;
+            hitLine = i;
+        }
+    }
+
+    bool ctrl = event->modifiers().testFlag(Qt::ControlModifier);
+    if (hitPoint >= 0) {
+        if (ctrl) {
+            if (selectedIndices_.contains(hitPoint)) selectedIndices_.remove(hitPoint);
+            else selectedIndices_.insert(hitPoint);
         } else {
             selectedIndices_.clear();
-            selectedIndices_.insert(hitIndex);
+            selectedIndices_.insert(hitPoint);
+            selectedLineIndices_.clear();
         }
-    } else if (!event->modifiers().testFlag(Qt::ControlModifier)) {
+    } else if (hitLine >= 0) {
+        if (ctrl) {
+            if (selectedLineIndices_.contains(hitLine)) selectedLineIndices_.remove(hitLine);
+            else selectedLineIndices_.insert(hitLine);
+        } else {
+            selectedLineIndices_.clear();
+            selectedLineIndices_.insert(hitLine);
+            selectedIndices_.clear();
+        }
+    } else if (!ctrl) {
         selectedIndices_.clear();
+        selectedLineIndices_.clear();
     }
     update();
     QWidget::mousePressEvent(event);

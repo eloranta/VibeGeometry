@@ -33,16 +33,19 @@ MainWindow::MainWindow(QWidget *parent)
     controls->setSpacing(8);
     auto *addPointBtn = new QPushButton("Add Point", central);
     auto *addLineBtn = new QPushButton("Add Line", central);
+    auto *extendLineBtn = new QPushButton("Extend Line", central);
     auto *addCircleBtn = new QPushButton("Add Circle", central);
     controls->addWidget(addPointBtn);
-    controls->addStretch(1);
     controls->addWidget(addLineBtn);
+    controls->addWidget(extendLineBtn);
+    controls->addStretch(1);
     controls->addWidget(addCircleBtn);
     controls->addStretch(1);
     layout->addLayout(controls);
 
     connect(addPointBtn, &QPushButton::clicked, this, &MainWindow::showAddPointDialog);
     connect(addLineBtn, &QPushButton::clicked, this, &MainWindow::onAddLineClicked);
+    connect(extendLineBtn, &QPushButton::clicked, this, &MainWindow::onExtendLineClicked);
 
     setCentralWidget(central);
 }
@@ -102,4 +105,9 @@ void MainWindow::onAddLineClicked() {
     if (!canvas_->addLineBetweenSelected()) {
         QMessageBox::information(this, "Line Exists", "A line between those points already exists.");
     }
+}
+
+void MainWindow::onExtendLineClicked() {
+    // Placeholder: functionality not implemented yet.
+    QMessageBox::information(this, "Extend Line", "Extend Line is not implemented yet.");
 }

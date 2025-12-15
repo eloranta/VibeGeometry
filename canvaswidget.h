@@ -16,6 +16,7 @@ public:
     int pointCount() const;
     bool addLineBetweenSelected();
     int selectedCount() const;
+    int selectedLineCount() const;
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -34,6 +35,7 @@ private:
     QVector<LineEntry> lines_;
     QString storagePath_;
     QSet<int> selectedIndices_;
+    QSet<int> selectedLineIndices_;
 
     void loadPointsFromFile();
     void savePointsToFile() const;

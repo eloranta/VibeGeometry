@@ -16,6 +16,8 @@ public:
     int pointCount() const;
     bool addLineBetweenSelected();
     bool extendSelectedLines();
+    bool addCircle(const QPointF &center, double radius);
+    bool selectedPoint(QPointF &point) const;
     int selectedCount() const;
     int selectedLineCount() const;
 
@@ -33,8 +35,13 @@ private:
         int b;
         bool extended = false;
     };
+    struct CircleEntry {
+        QPointF center;
+        double radius = 0.0;
+    };
     QVector<PointEntry> points_;
     QVector<LineEntry> lines_;
+    QVector<CircleEntry> circles_;
     QString storagePath_;
     QSet<int> selectedIndices_;
     QSet<int> selectedLineIndices_;

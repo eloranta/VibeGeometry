@@ -38,7 +38,6 @@ MainWindow::MainWindow(QWidget *parent)
     controls->addWidget(addPointBtn);
     controls->addWidget(addLineBtn);
     controls->addWidget(extendLineBtn);
-    controls->addStretch(1);
     controls->addWidget(addCircleBtn);
     controls->addStretch(1);
     layout->addLayout(controls);
@@ -46,6 +45,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(addPointBtn, &QPushButton::clicked, this, &MainWindow::showAddPointDialog);
     connect(addLineBtn, &QPushButton::clicked, this, &MainWindow::onAddLineClicked);
     connect(extendLineBtn, &QPushButton::clicked, this, &MainWindow::onExtendLineClicked);
+    connect(addCircleBtn, &QPushButton::clicked, this, &MainWindow::onAddCircleClicked);
 
     setCentralWidget(central);
 }
@@ -114,5 +114,37 @@ void MainWindow::onExtendLineClicked() {
     }
     if (!canvas_->extendSelectedLines()) {
         QMessageBox::information(this, "Extend Line", "No lines were extended (they may already be extended).");
+    }
+}
+
+void MainWindow::onAddCircleClicked() {
+    QPointF center;
+    if (!canvas_->selectedPoint(center)) {
+        QMessageBox::information(this, "Select Center", "Select a point to use as the circle center.");
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle("Add Circle");
+    auto *form = new QFormLayout(&dialog);
+    auto *radiusSpin = new QDoubleSpinBox(&dialog);
+    radiusSpin->setRange(0.0, 10000.0);
+    radiusSpin->setDecimals(3);
+    radiusSpin->setSingleStep(0.1);
+    radiusSpin->setValue(1.0);
+    form->addRow("Radius:", radiusSpin);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    form->addWidget(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        double r = radiusSpin->value();
+        if (r <= 0.0) {
+            QMessageBox::information(this, "Invalid Radius", "Radius must be greater than zero.");
+            return;
+        }
+        canvas_->addCircle(center, r);
     }
 }

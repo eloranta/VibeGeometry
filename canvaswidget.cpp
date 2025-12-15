@@ -12,6 +12,7 @@
 #include <limits>
 #include <algorithm>
 #include <QList>
+#include <cmath>
 
 CanvasWidget::CanvasWidget(const QString &storagePath, QWidget *parent)
     : QWidget(parent),
@@ -51,6 +52,20 @@ int CanvasWidget::selectedLineCount() const {
     return selectedLineIndices_.size();
 }
 
+bool CanvasWidget::selectedPoint(QPointF &point) const {
+    if (selectedIndices_.isEmpty()) {
+        return false;
+    }
+    QList<int> indices = selectedIndices_.values();
+    std::sort(indices.begin(), indices.end());
+    int idx = indices.first();
+    if (idx < 0 || idx >= points_.size()) {
+        return false;
+    }
+    point = points_[idx].pos;
+    return true;
+}
+
 bool CanvasWidget::addLineBetweenSelected() {
     if (selectedIndices_.size() < 2) {
         return false;
@@ -88,6 +103,16 @@ bool CanvasWidget::extendSelectedLines() {
         update();
     }
     return changed;
+}
+
+bool CanvasWidget::addCircle(const QPointF &center, double radius) {
+    if (radius <= 0.0) {
+        return false;
+    }
+    circles_.append({center, radius});
+    savePointsToFile();
+    update();
+    return true;
 }
 
 void CanvasWidget::paintEvent(QPaintEvent *event) {
@@ -192,6 +217,13 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
                 drawSegment(p1, p2);
             }
         }
+    }
+
+    painter.setPen(QPen(Qt::darkGreen, 2));
+    for (const auto &circle : circles_) {
+        QPointF topLeft = map(circle.center.x() - circle.radius, circle.center.y() + circle.radius);
+        QPointF bottomRight = map(circle.center.x() + circle.radius, circle.center.y() - circle.radius);
+        painter.drawEllipse(QRectF(topLeft, bottomRight));
     }
 
     const double radiusPixels = 4.0;
@@ -336,6 +368,17 @@ void CanvasWidget::loadPointsFromFile() {
             lines_.append({a, b, extended});
         }
     }
+    QJsonArray circlesArr = root.value("circles").toArray();
+    for (const auto &value : circlesArr) {
+        if (!value.isObject()) continue;
+        const auto obj = value.toObject();
+        double cx = obj.value("x").toDouble();
+        double cy = obj.value("y").toDouble();
+        double r = obj.value("r").toDouble();
+        if (r > 0.0) {
+            circles_.append({QPointF(cx, cy), r});
+        }
+    }
 }
 
 void CanvasWidget::savePointsToFile() const {
@@ -358,9 +401,18 @@ void CanvasWidget::savePointsToFile() const {
         obj.insert("extended", line.extended);
         linesArr.append(obj);
     }
+    QJsonArray circlesArr;
+    for (const auto &circle : circles_) {
+        QJsonObject obj;
+        obj.insert("x", circle.center.x());
+        obj.insert("y", circle.center.y());
+        obj.insert("r", circle.radius);
+        circlesArr.append(obj);
+    }
     QJsonObject root;
     root.insert("points", pointsArr);
     root.insert("lines", linesArr);
+    root.insert("circles", circlesArr);
     QJsonDocument doc(root);
 
     QDir().mkpath(QFileInfo(storagePath_).absolutePath());

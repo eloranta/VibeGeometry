@@ -17,4 +17,5 @@ private:
     void showAddPointDialog();
     void onAddLineClicked();
     void onExtendLineClicked();
+    void onAddCircleClicked();
 };

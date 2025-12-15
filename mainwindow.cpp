@@ -42,6 +42,7 @@ MainWindow::MainWindow(QWidget *parent)
     layout->addLayout(controls);
 
     connect(addPointBtn, &QPushButton::clicked, this, &MainWindow::showAddPointDialog);
+    connect(addLineBtn, &QPushButton::clicked, this, &MainWindow::onAddLineClicked);
 
     setCentralWidget(central);
 }
@@ -90,5 +91,15 @@ void MainWindow::showAddPointDialog() {
         if (canvas_->addPoint(pt, label)) {
             ++pointCounter_;
         }
+    }
+}
+
+void MainWindow::onAddLineClicked() {
+    if (canvas_->selectedCount() < 2) {
+        QMessageBox::information(this, "Select Points", "Select at least two points (Ctrl+click to multi-select) to add a line.");
+        return;
+    }
+    if (!canvas_->addLineBetweenSelected()) {
+        QMessageBox::information(this, "Line Exists", "A line between those points already exists.");
     }
 }

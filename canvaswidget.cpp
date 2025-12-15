@@ -8,7 +8,10 @@
 #include <QJsonObject>
 #include <QDir>
 #include <QFileInfo>
+#include <QMouseEvent>
+#include <limits>
 #include <algorithm>
+#include <QList>
 
 CanvasWidget::CanvasWidget(const QString &storagePath, QWidget *parent)
     : QWidget(parent),
@@ -38,6 +41,32 @@ bool CanvasWidget::hasPoint(const QPointF &point) const {
 
 int CanvasWidget::pointCount() const {
     return points_.size();
+}
+
+int CanvasWidget::selectedCount() const {
+    return selectedIndices_.size();
+}
+
+bool CanvasWidget::addLineBetweenSelected() {
+    if (selectedIndices_.size() < 2) {
+        return false;
+    }
+    QList<int> indices = selectedIndices_.values();
+    std::sort(indices.begin(), indices.end());
+    int a = indices[0];
+    int b = indices[1];
+    if (a == b) return false;
+
+    // Avoid duplicates (order-insensitive)
+    for (const auto &line : lines_) {
+        if ((line.a == a && line.b == b) || (line.a == b && line.b == a)) {
+            return false;
+        }
+    }
+    lines_.append({a, b});
+    savePointsToFile();
+    update();
+    return true;
 }
 
 void CanvasWidget::paintEvent(QPaintEvent *event) {
@@ -76,21 +105,73 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
         painter.drawLine(p3, p4);
     }
 
-    painter.setBrush(Qt::red);
-    painter.setPen(QPen(Qt::red, 2));
+    painter.setPen(QPen(Qt::blue, 2));
+    for (const auto &line : lines_) {
+        if (line.a < 0 || line.b < 0 || line.a >= points_.size() || line.b >= points_.size()) continue;
+        QPointF p1 = points_[line.a].pos;
+        QPointF p2 = points_[line.b].pos;
+        painter.drawLine(map(p1.x(), p1.y()), map(p2.x(), p2.y()));
+    }
+
     const double radiusPixels = 4.0;
     painter.setFont([&]{
         QFont f = painter.font();
         f.setPointSizeF(9.0);
         return f;
     }());
-    for (const auto &entry : points_) {
+    for (int i = 0; i < points_.size(); ++i) {
+        const auto &entry = points_[i];
         QPointF mapped = map(entry.pos.x(), entry.pos.y());
-        painter.drawEllipse(mapped, radiusPixels, radiusPixels);
+        bool selected = selectedIndices_.contains(i);
+        painter.setBrush(selected ? Qt::yellow : Qt::red);
+        painter.setPen(QPen(selected ? Qt::darkYellow : Qt::red, selected ? 3 : 2));
+        painter.drawEllipse(mapped, selected ? radiusPixels + 2 : radiusPixels, selected ? radiusPixels + 2 : radiusPixels);
         painter.setPen(Qt::black);
         painter.drawText(mapped + QPointF(6, -6), entry.label);
-        painter.setPen(QPen(Qt::red, 2));
     }
+}
+
+void CanvasWidget::mousePressEvent(QMouseEvent *event) {
+    const int padding = 16;
+    QRectF area = rect().adjusted(padding, padding, -padding, -padding);
+    const double span = 10.0;
+    const double scale = std::min(area.width(), area.height()) / span;
+    QPointF origin(area.left() + area.width() / 2.0, area.top() + area.height() / 2.0);
+
+    auto map = [&](const QPointF &p) -> QPointF {
+        return QPointF(origin.x() + p.x() * scale, origin.y() - p.y() * scale);
+    };
+
+    int hitIndex = -1;
+    double bestDist2 = std::numeric_limits<double>::max();
+    const double tolerancePx = 8.0;
+    const double tol2 = tolerancePx * tolerancePx;
+    for (int i = 0; i < points_.size(); ++i) {
+        QPointF screen = map(points_[i].pos);
+        double dx = screen.x() - event->position().x();
+        double dy = screen.y() - event->position().y();
+        double d2 = dx * dx + dy * dy;
+        if (d2 <= tol2 && d2 < bestDist2) {
+            bestDist2 = d2;
+            hitIndex = i;
+        }
+    }
+    if (hitIndex >= 0) {
+        if (event->modifiers().testFlag(Qt::ControlModifier)) {
+            if (selectedIndices_.contains(hitIndex)) {
+                selectedIndices_.remove(hitIndex);
+            } else {
+                selectedIndices_.insert(hitIndex);
+            }
+        } else {
+            selectedIndices_.clear();
+            selectedIndices_.insert(hitIndex);
+        }
+    } else if (!event->modifiers().testFlag(Qt::ControlModifier)) {
+        selectedIndices_.clear();
+    }
+    update();
+    QWidget::mousePressEvent(event);
 }
 
 void CanvasWidget::loadPointsFromFile() {
@@ -107,11 +188,14 @@ void CanvasWidget::loadPointsFromFile() {
     const auto data = file.readAll();
     file.close();
     auto doc = QJsonDocument::fromJson(data);
-    if (!doc.isArray()) {
+    if (!doc.isObject()) {
         return;
     }
     points_.clear();
-    for (const auto &value : doc.array()) {
+    lines_.clear();
+    QJsonObject root = doc.object();
+    QJsonArray pointsArr = root.value("points").toArray();
+    for (const auto &value : pointsArr) {
         if (!value.isObject()) continue;
         const auto obj = value.toObject();
         double x = obj.value("x").toDouble();
@@ -120,21 +204,41 @@ void CanvasWidget::loadPointsFromFile() {
         if (label.isEmpty()) label = QStringLiteral("P");
         points_.append({QPointF(x, y), label});
     }
+    QJsonArray linesArr = root.value("lines").toArray();
+    for (const auto &value : linesArr) {
+        if (!value.isObject()) continue;
+        const auto obj = value.toObject();
+        int a = obj.value("a").toInt(-1);
+        int b = obj.value("b").toInt(-1);
+        if (a >= 0 && b >= 0) {
+            lines_.append({a, b});
+        }
+    }
 }
 
 void CanvasWidget::savePointsToFile() const {
     if (storagePath_.isEmpty()) {
         return;
     }
-    QJsonArray arr;
+    QJsonArray pointsArr;
     for (const auto &entry : points_) {
         QJsonObject obj;
         obj.insert("x", entry.pos.x());
         obj.insert("y", entry.pos.y());
         obj.insert("label", entry.label);
-        arr.append(obj);
+        pointsArr.append(obj);
     }
-    QJsonDocument doc(arr);
+    QJsonArray linesArr;
+    for (const auto &line : lines_) {
+        QJsonObject obj;
+        obj.insert("a", line.a);
+        obj.insert("b", line.b);
+        linesArr.append(obj);
+    }
+    QJsonObject root;
+    root.insert("points", pointsArr);
+    root.insert("lines", linesArr);
+    QJsonDocument doc(root);
 
     QDir().mkpath(QFileInfo(storagePath_).absolutePath());
     QFile file(storagePath_);

@@ -226,7 +226,6 @@ bool CanvasWidget::addLineBetweenSelected(const QString &label) {
     }
     QString useLabel = label.isEmpty() ? nextLineLabel() : label;
     lines_.append({a, b, false, useLabel});
-    findIntersectionsForLine(lines_.size() - 1);
     savePointsToFile();
     update();
     return true;
@@ -255,7 +254,6 @@ bool CanvasWidget::addCircle(const QPointF &center, double radius) {
         return false;
     }
     circles_.append({center, radius});
-    findIntersectionsForCircle(circles_.size() - 1);
     savePointsToFile();
     update();
     return true;
@@ -282,7 +280,6 @@ bool CanvasWidget::addNormalAtPoint(int lineIndex, const QPointF &point) {
     normalLine.customA = a;
     normalLine.customB = b;
     lines_.append(normalLine);
-    findIntersectionsForLine(lines_.size() - 1);
     savePointsToFile();
     update();
     return true;
@@ -399,6 +396,76 @@ void CanvasWidget::findIntersectionsForLine(int lineIndex) {
             addIntersectionPoint(h);
         }
     }
+}
+
+void CanvasWidget::recomputeAllIntersections() {
+    // Rebuild points by keeping existing named points and re-adding intersection points.
+    // For simplicity, we keep current points and just add any missing intersections.
+    for (int i = 0; i < lines_.size(); ++i) {
+        findIntersectionsForLine(i);
+    }
+    for (int i = 0; i < circles_.size(); ++i) {
+        findIntersectionsForCircle(i);
+    }
+    savePointsToFile();
+    update();
+}
+
+void CanvasWidget::recomputeSelectedIntersections() {
+    // Only compute intersections between the selected combination of two objects.
+    if (selectedIndices_.size() + selectedLineIndices_.size() + selectedCircleIndices_.size() != 2) {
+        return;
+    }
+    // Collect selected objects
+    QVector<int> pointSel = selectedIndices_.values().toVector();
+    QVector<int> lineSel = selectedLineIndices_.values().toVector();
+    QVector<int> circleSel = selectedCircleIndices_.values().toVector();
+
+    auto addPt = [&](const QPointF &pt) {
+        addIntersectionPoint(pt);
+    };
+
+    // Cases:
+    if (lineSel.size() == 2) {
+        auto [a1, a2] = lineEndpoints(lines_[lineSel[0]]);
+        auto [b1, b2] = lineEndpoints(lines_[lineSel[1]]);
+        QPointF hit;
+        if (segmentIntersection(a1, a2, b1, b2, hit)) addPt(hit);
+    } else if (lineSel.size() == 1 && circleSel.size() == 1) {
+        auto [p1, p2] = lineEndpoints(lines_[lineSel[0]]);
+        auto hits = segmentCircleIntersections(p1, p2, circles_[circleSel[0]].center, circles_[circleSel[0]].radius);
+        for (const auto &h : hits) addPt(h);
+    } else if (circleSel.size() == 2) {
+        auto hits = circleCircleIntersections(circles_[circleSel[0]].center, circles_[circleSel[0]].radius,
+                                              circles_[circleSel[1]].center, circles_[circleSel[1]].radius);
+        for (const auto &h : hits) addPt(h);
+    } else if (lineSel.size() == 1 && pointSel.size() == 1) {
+        auto [p1, p2] = lineEndpoints(lines_[lineSel[0]]);
+        QPointF pt = points_[pointSel[0]].pos;
+        // Add projection if within segment (or infinite if extended/custom)
+        QPointF d = p2 - p1;
+        double len2 = d.x() * d.x() + d.y() * d.y();
+        if (len2 > 1e-12) {
+            double t = ((pt.x() - p1.x()) * d.x() + (pt.y() - p1.y()) * d.y()) / len2;
+            if (lines_[lineSel[0]].custom || lines_[lineSel[0]].extended) {
+                // infinite
+            } else {
+                if (t < -1e-9 || t > 1.0 + 1e-9) t = std::clamp(t, 0.0, 1.0);
+            }
+            QPointF proj(p1.x() + t * d.x(), p1.y() + t * d.y());
+            addPt(proj);
+        }
+    } else if (circleSel.size() == 1 && pointSel.size() == 1) {
+        // Add point if it's on the circle (within small epsilon)
+        const auto &c = circles_[circleSel[0]];
+        double dist = std::hypot(pointSel[0] < points_.size() ? points_[pointSel[0]].pos.x() - c.center.x() : 0.0,
+                                 pointSel[0] < points_.size() ? points_[pointSel[0]].pos.y() - c.center.y() : 0.0);
+        if (std::abs(dist - c.radius) < 1e-6) {
+            addPt(points_[pointSel[0]].pos);
+        }
+    }
+    savePointsToFile();
+    update();
 }
 
 void CanvasWidget::findIntersectionsForCircle(int circleIndex) {

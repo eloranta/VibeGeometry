@@ -37,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent)
     auto *extendLineBtn = new QPushButton("Extend Line", central);
     auto *addCircleBtn = new QPushButton("Add Circle", central);
     auto *intersectBtn = new QPushButton("Normal", central);
+    auto *intersectionsBtn = new QPushButton("Intersect", central);
     auto *deleteBtn = new QPushButton("Delete", central);
     auto *deleteAllBtn = new QPushButton("Delete All", central);
     controls->addWidget(addPointBtn);
@@ -44,6 +45,7 @@ MainWindow::MainWindow(QWidget *parent)
     controls->addWidget(extendLineBtn);
     controls->addWidget(addCircleBtn);
     controls->addWidget(intersectBtn);
+    controls->addWidget(intersectionsBtn);
     controls->addWidget(deleteBtn);
     controls->addWidget(deleteAllBtn);
     controls->addStretch(1);
@@ -54,6 +56,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(extendLineBtn, &QPushButton::clicked, this, &MainWindow::onExtendLineClicked);
     connect(addCircleBtn, &QPushButton::clicked, this, &MainWindow::onAddCircleClicked);
     connect(intersectBtn, &QPushButton::clicked, this, &MainWindow::onIntersectClicked);
+    connect(intersectionsBtn, &QPushButton::clicked, this, &MainWindow::onIntersectionsClicked);
     connect(deleteBtn, &QPushButton::clicked, this, &MainWindow::onDeleteClicked);
     connect(deleteAllBtn, &QPushButton::clicked, this, &MainWindow::onDeleteAllClicked);
 
@@ -180,4 +183,9 @@ void MainWindow::onIntersectClicked() {
     } else {
         pointCounter_ = canvas_->pointCount() + 1;
     }
+}
+
+void MainWindow::onIntersectionsClicked() {
+    canvas_->recomputeSelectedIntersections();
+    pointCounter_ = canvas_->pointCount() + 1;
 }

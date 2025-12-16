@@ -29,6 +29,8 @@ public:
     int selectedLineCount() const;
     int selectedCircleCount() const;
     QString suggestedLineLabel() const;
+    void recomputeAllIntersections();
+    void recomputeSelectedIntersections();
 
 protected:
     void paintEvent(QPaintEvent *event) override;

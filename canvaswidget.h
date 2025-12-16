@@ -20,10 +20,10 @@ public:
     bool addCircle(const QPointF &center, double radius);
     bool selectedPoint(QPointF &point) const;
     bool addNormalAtPoint(int lineIndex, const QPointF &point);
-    QList<int> selectedIndices() const { return selectedIndices_.values(); }
-    QList<int> selectedPointsOrdered() const { return pointSelectionOrder_; }
-    int selectedLineIndex() const { return selectedLineIndices_.isEmpty() ? -1 : *selectedLineIndices_.constBegin(); }
-    QPointF pointAt(int index) const { return points_.at(index).pos; }
+    QList<int> selectedIndices() const { return selectedPointIndices.values(); }
+    QList<int> selectedPointsOrdered() const { return pointSelectionOrder; }
+    int selectedLineIndex() const { return selectedLineIndices.isEmpty() ? -1 : *selectedLineIndices.constBegin(); }
+    QPointF pointAt(int index) const { return points.at(index).positiom; }
     bool deleteSelected();
     void deleteAll();
     int selectedCount() const;
@@ -40,43 +40,43 @@ protected:
 private:
     struct Object {
         QString label;
-        explicit Object(const QString &l = QString()) : label(l) {}
+        explicit Object(const QString &label = QString()) : label(label) {}
         virtual ~Object() = default;
     };
     struct Point : public Object {
-        QPointF pos;
+        QPointF positiom;
         Point() = default;
-        Point(const QPointF &p, const QString &l) : Object(l), pos(p) {}
+        Point(const QPointF &point, const QString &label) : Object(label), positiom(point) {}
     };
     struct Line : public Object {
         int a = -1;
         int b = -1;
         Line() = default;
-        Line(int aIn, int bIn, const QString &lab) : Object(lab), a(aIn), b(bIn) {}
+        Line(int a, int b, const QString &label) : Object(label), a(a), b(b) {}
     };
     struct ExtendedLine : public Object {
         QPointF a;
         QPointF b;
         ExtendedLine() = default;
-        ExtendedLine(const QPointF &aIn, const QPointF &bIn, const QString &lab) : Object(lab), a(aIn), b(bIn) {}
+        ExtendedLine(const QPointF &a, const QPointF &b, const QString &label) : Object(label), a(a), b(b) {}
     };
     struct Circle : public Object {
         QPointF center;
         double radius = 0.0;
         Circle() = default;
-        Circle(const QPointF &c, double r, const QString &lab = QString()) : Object(lab), center(c), radius(r) {}
+        Circle(const QPointF &center, double radius, const QString &label = QString()) : Object(label), center(center), radius(radius) {}
     };
 
-    QVector<Point> points_;
-    QVector<Line> lines_;
-    QVector<ExtendedLine> extendedLines_;
-    QVector<Circle> circles_;
-    QString storagePath_;
-    QSet<int> selectedIndices_;
-    QSet<int> selectedLineIndices_;
-    QSet<int> selectedExtendedLineIndices_;
-    QSet<int> selectedCircleIndices_;
-    QList<int> pointSelectionOrder_;
+    QVector<Point> points;
+    QVector<Line> lines;
+    QVector<ExtendedLine> extendedLines;
+    QVector<Circle> circles;
+    QString storagePath;
+    QSet<int> selectedPointIndices;
+    QSet<int> selectedLineIndices;
+    QSet<int> selectedExtendedLineIndices;
+    QSet<int> selectedCircleIndices;
+    QList<int> pointSelectionOrder;
 
     void loadPointsFromFile();
     void savePointsToFile() const;

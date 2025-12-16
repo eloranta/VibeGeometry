@@ -6,6 +6,7 @@
 #include <QString>
 #include <QSet>
 #include <QMouseEvent>
+
 class CanvasWidget : public QWidget {
     Q_OBJECT
 
@@ -50,17 +51,14 @@ private:
     struct Line : public Object {
         int a = -1;
         int b = -1;
-        bool custom = false;
-        QPointF customA;
-        QPointF customB;
         Line() = default;
-        Line(int aIn, int bIn, const QString &lab, bool customIn = false, const QPointF &ca = QPointF(), const QPointF &cb = QPointF())
-            : Object(lab), a(aIn), b(bIn), custom(customIn), customA(ca), customB(cb) {}
+        Line(int aIn, int bIn, const QString &lab) : Object(lab), a(aIn), b(bIn) {}
     };
-    struct ExtendedLine : public Line {
+    struct ExtendedLine : public Object {
+        QPointF a;
+        QPointF b;
         ExtendedLine() = default;
-        ExtendedLine(int aIn, int bIn, const QString &lab, bool customIn = false, const QPointF &ca = QPointF(), const QPointF &cb = QPointF())
-            : Line(aIn, bIn, lab, customIn, ca, cb) {}
+        ExtendedLine(const QPointF &aIn, const QPointF &bIn, const QString &lab) : Object(lab), a(aIn), b(bIn) {}
     };
     struct Circle : public Object {
         QPointF center;
@@ -71,10 +69,12 @@ private:
 
     QVector<Point> points_;
     QVector<Line> lines_;
+    QVector<ExtendedLine> extendedLines_;
     QVector<Circle> circles_;
     QString storagePath_;
     QSet<int> selectedIndices_;
     QSet<int> selectedLineIndices_;
+    QSet<int> selectedExtendedLineIndices_;
     QSet<int> selectedCircleIndices_;
     QList<int> pointSelectionOrder_;
 
@@ -85,6 +85,8 @@ private:
     QString nextLineLabel() const;
     QString nextCircleLabel() const;
     std::pair<QPointF, QPointF> lineEndpoints(const Line &line) const;
+    std::pair<QPointF, QPointF> extendedLineEndpoints(const ExtendedLine &line) const;
     void findIntersectionsForLine(int lineIndex);
+    void findIntersectionsForExtendedLine(int lineIndex);
     void findIntersectionsForCircle(int circleIndex);
 };

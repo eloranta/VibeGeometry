@@ -142,60 +142,13 @@ void CanvasWidget::addIntersectionPoint(const QPointF &pt) {
 }
 
 std::pair<QPointF, QPointF> CanvasWidget::lineEndpoints(const Line &line) const {
-    if (line.custom) {
-        return {line.customA, line.customB};
-    }
     QPointF p1 = points_[line.a].pos;
     QPointF p2 = points_[line.b].pos;
-    if (!line.custom) {
-        return {p1, p2};
-    }
-    const double xmin = -5.0, xmax = 5.0, ymin = -5.0, ymax = 5.0;
-    const double dx = p2.x() - p1.x();
-    const double dy = p2.y() - p1.y();
-    QVector<QPointF> hits;
-    auto addIfInside = [&](double x, double y) {
-        if (x >= xmin - 1e-9 && x <= xmax + 1e-9 && y >= ymin - 1e-9 && y <= ymax + 1e-9) {
-            hits.append(QPointF(x, y));
-        }
-    };
-    if (std::abs(dx) > 1e-9) {
-        double t1 = (xmin - p1.x()) / dx;
-        addIfInside(xmin, p1.y() + t1 * dy);
-        double t2 = (xmax - p1.x()) / dx;
-        addIfInside(xmax, p1.y() + t2 * dy);
-    }
-    if (std::abs(dy) > 1e-9) {
-        double t3 = (ymin - p1.y()) / dy;
-        addIfInside(p1.x() + t3 * dx, ymin);
-        double t4 = (ymax - p1.y()) / dy;
-        addIfInside(p1.x() + t4 * dx, ymax);
-    }
-    QVector<QPointF> uniqueHits;
-    auto isClose = [](const QPointF &a, const QPointF &b) {
-        return std::hypot(a.x() - b.x(), a.y() - b.y()) < 1e-6;
-    };
-    for (const auto &h : hits) {
-        bool dup = false;
-        for (const auto &u : uniqueHits) {
-            if (isClose(h, u)) {
-                dup = true;
-                break;
-            }
-        }
-        if (!dup) uniqueHits.append(h);
-    }
-    if (uniqueHits.size() >= 2) {
-        QVector<std::pair<double, QPointF>> proj;
-        if (std::abs(dx) >= std::abs(dy)) {
-            for (const auto &h : uniqueHits) proj.append({ (h.x() - p1.x()) / dx, h });
-        } else {
-            for (const auto &h : uniqueHits) proj.append({ (h.y() - p1.y()) / dy, h });
-        }
-        std::sort(proj.begin(), proj.end(), [](const auto &a, const auto &b){ return a.first < b.first; });
-        return {proj.front().second, proj.back().second};
-    }
     return {p1, p2};
+}
+
+std::pair<QPointF, QPointF> CanvasWidget::extendedLineEndpoints(const ExtendedLine &line) const {
+    return {line.a, line.b};
 }
 
 bool CanvasWidget::selectedPoint(QPointF &point) const {
@@ -237,64 +190,72 @@ bool CanvasWidget::addLineBetweenSelected(const QString &label) {
 
 bool CanvasWidget::extendSelectedLines() {
     bool changed = false;
+    QVector<int> toRemove;
     for (int idx : selectedLineIndices_) {
         if (idx >= 0 && idx < lines_.size()) {
-            if (!lines_[idx].custom) {
-                // Compute intersections with bounding box [-5,5] x [-5,5] to extend across the canvas.
-                const QPointF p1 = points_[lines_[idx].a].pos;
-                const QPointF p2 = points_[lines_[idx].b].pos;
-                const double xmin = -5.0, xmax = 5.0, ymin = -5.0, ymax = 5.0;
-                const double dx = p2.x() - p1.x();
-                const double dy = p2.y() - p1.y();
-                QVector<QPointF> hits;
-                auto addIfInside = [&](double x, double y) {
-                    if (x >= xmin - 1e-9 && x <= xmax + 1e-9 && y >= ymin - 1e-9 && y <= ymax + 1e-9) {
-                        hits.append(QPointF(x, y));
-                    }
-                };
-                if (std::abs(dx) > 1e-9) {
-                    double t1 = (xmin - p1.x()) / dx;
-                    addIfInside(xmin, p1.y() + t1 * dy);
-                    double t2 = (xmax - p1.x()) / dx;
-                    addIfInside(xmax, p1.y() + t2 * dy);
+            // Compute intersections with bounding box [-5,5] x [-5,5] to extend across the canvas.
+            const QPointF p1 = points_[lines_[idx].a].pos;
+            const QPointF p2 = points_[lines_[idx].b].pos;
+            const double xmin = -5.0, xmax = 5.0, ymin = -5.0, ymax = 5.0;
+            const double dx = p2.x() - p1.x();
+            const double dy = p2.y() - p1.y();
+            QVector<QPointF> hits;
+            auto addIfInside = [&](double x, double y) {
+                if (x >= xmin - 1e-9 && x <= xmax + 1e-9 && y >= ymin - 1e-9 && y <= ymax + 1e-9) {
+                    hits.append(QPointF(x, y));
                 }
-                if (std::abs(dy) > 1e-9) {
-                    double t3 = (ymin - p1.y()) / dy;
-                    addIfInside(p1.x() + t3 * dx, ymin);
-                    double t4 = (ymax - p1.y()) / dy;
-                    addIfInside(p1.x() + t4 * dx, ymax);
+            };
+            if (std::abs(dx) > 1e-9) {
+                double t1 = (xmin - p1.x()) / dx;
+                addIfInside(xmin, p1.y() + t1 * dy);
+                double t2 = (xmax - p1.x()) / dx;
+                addIfInside(xmax, p1.y() + t2 * dy);
+            }
+            if (std::abs(dy) > 1e-9) {
+                double t3 = (ymin - p1.y()) / dy;
+                addIfInside(p1.x() + t3 * dx, ymin);
+                double t4 = (ymax - p1.y()) / dy;
+                addIfInside(p1.x() + t4 * dx, ymax);
+            }
+            // Remove duplicates
+            QVector<QPointF> uniqueHits;
+            auto isClose = [](const QPointF &a, const QPointF &b) {
+                return std::hypot(a.x() - b.x(), a.y() - b.y()) < 1e-6;
+            };
+            for (const auto &h : hits) {
+                bool dup = false;
+                for (const auto &u : uniqueHits) {
+                    if (isClose(h, u)) { dup = true; break; }
                 }
-                // Remove duplicates
-                QVector<QPointF> uniqueHits;
-                auto isClose = [](const QPointF &a, const QPointF &b) {
-                    return std::hypot(a.x() - b.x(), a.y() - b.y()) < 1e-6;
-                };
-                for (const auto &h : hits) {
-                    bool dup = false;
-                    for (const auto &u : uniqueHits) {
-                        if (isClose(h, u)) { dup = true; break; }
-                    }
-                    if (!dup) uniqueHits.append(h);
-                }
-                if (uniqueHits.size() >= 2) {
-                    QVector<std::pair<double, QPointF>> proj;
-                    if (std::abs(dx) >= std::abs(dy)) {
-                        for (const auto &h : uniqueHits) proj.append({ (h.x() - p1.x()) / dx, h });
-                    } else {
-                        for (const auto &h : uniqueHits) proj.append({ (h.y() - p1.y()) / dy, h });
-                    }
-                    std::sort(proj.begin(), proj.end(), [](const auto &a, const auto &b){ return a.first < b.first; });
-                    lines_[idx].customA = proj.front().second;
-                    lines_[idx].customB = proj.back().second;
+                if (!dup) uniqueHits.append(h);
+            }
+            QPointF aPoint = p1;
+            QPointF bPoint = p2;
+            if (uniqueHits.size() >= 2) {
+                QVector<std::pair<double, QPointF>> proj;
+                if (std::abs(dx) >= std::abs(dy)) {
+                    for (const auto &h : uniqueHits) proj.append({ (h.x() - p1.x()) / dx, h });
                 } else {
-                    lines_[idx].customA = p1;
-                    lines_[idx].customB = p2;
+                    for (const auto &h : uniqueHits) proj.append({ (h.y() - p1.y()) / dy, h });
                 }
-                lines_[idx].custom = true;  // treat extend as making it infinite
-                changed = true;
-                findIntersectionsForLine(idx);
+                std::sort(proj.begin(), proj.end(), [](const auto &a, const auto &b){ return a.first < b.first; });
+                aPoint = proj.front().second;
+                bPoint = proj.back().second;
+            }
+            extendedLines_.append(ExtendedLine(aPoint, bPoint, lines_[idx].label));
+            toRemove.append(idx);
+            changed = true;
+        }
+    }
+    if (!toRemove.isEmpty()) {
+        QVector<Line> newLines;
+        for (int i = 0; i < lines_.size(); ++i) {
+            if (!toRemove.contains(i)) {
+                newLines.append(lines_[i]);
             }
         }
+        lines_.swap(newLines);
+        selectedLineIndices_.clear();
     }
     if (changed) {
         savePointsToFile();
@@ -325,14 +286,7 @@ bool CanvasWidget::addNormalAtPoint(int lineIndex, const QPointF &point) {
     const double span = 20.0;  // enough to cross the -5..5 box
     QPointF a = point + dir * span;
     QPointF b = point - dir * span;
-    Line normalLine;
-    normalLine.a = -1;
-    normalLine.b = -1;
-    normalLine.custom = true;
-    normalLine.customA = a;
-    normalLine.customB = b;
-    normalLine.label = nextLineLabel();
-    lines_.append(normalLine);
+    extendedLines_.append(ExtendedLine(a, b, nextLineLabel()));
     savePointsToFile();
     update();
     return true;
@@ -364,10 +318,6 @@ bool CanvasWidget::deleteSelected() {
             changed = true;
             continue;
         }
-        if (line.custom) {
-            newLines.append(line);
-            continue;
-        }
         if (removePoints.contains(line.a) || removePoints.contains(line.b)) {
             changed = true;
             continue;
@@ -382,7 +332,16 @@ bool CanvasWidget::deleteSelected() {
             changed = true;
             continue;
         }
-        newLines.append(Line(na, nb, line.label, line.custom));
+        newLines.append(Line(na, nb, line.label));
+    }
+
+    QVector<ExtendedLine> newExtended;
+    for (int i = 0; i < extendedLines_.size(); ++i) {
+        if (selectedExtendedLineIndices_.contains(i)) {
+            changed = true;
+            continue;
+        }
+        newExtended.append(extendedLines_[i]);
     }
 
     QVector<Circle> newCircles;
@@ -405,8 +364,10 @@ bool CanvasWidget::deleteSelected() {
     }
     if (changed) {
         lines_.swap(newLines);
+        extendedLines_.swap(newExtended);
         selectedIndices_.clear();
         selectedLineIndices_.clear();
+        selectedExtendedLineIndices_.clear();
         selectedCircleIndices_.clear();
         savePointsToFile();
         update();
@@ -420,9 +381,11 @@ void CanvasWidget::deleteAll() {
     }
     points_.clear();
     lines_.clear();
+    extendedLines_.clear();
     circles_.clear();
     selectedIndices_.clear();
     selectedLineIndices_.clear();
+    selectedExtendedLineIndices_.clear();
     selectedCircleIndices_.clear();
     savePointsToFile();
     update();
@@ -435,8 +398,45 @@ void CanvasWidget::findIntersectionsForLine(int lineIndex) {
     // With other lines
     for (int i = 0; i < lines_.size(); ++i) {
         if (i == lineIndex) continue;
-        if (!lines_[i].custom && (lines_[i].a < 0 || lines_[i].b < 0 || lines_[i].a >= points_.size() || lines_[i].b >= points_.size())) continue;
         auto [b1, b2] = lineEndpoints(lines_[i]);
+        QPointF hit;
+        if (segmentIntersection(a1, a2, b1, b2, hit)) {
+            addIntersectionPoint(hit);
+        }
+    }
+    // With extended lines
+    for (int i = 0; i < extendedLines_.size(); ++i) {
+        auto [b1, b2] = extendedLineEndpoints(extendedLines_[i]);
+        QPointF hit;
+        if (segmentIntersection(a1, a2, b1, b2, hit)) {
+            addIntersectionPoint(hit);
+        }
+    }
+    // With circles
+    for (const auto &circle : circles_) {
+        auto hits = segmentCircleIntersections(a1, a2, circle.center, circle.radius);
+        for (const auto &h : hits) {
+            addIntersectionPoint(h);
+        }
+    }
+}
+
+void CanvasWidget::findIntersectionsForExtendedLine(int lineIndex) {
+    if (lineIndex < 0 || lineIndex >= extendedLines_.size()) return;
+    auto [a1, a2] = extendedLineEndpoints(extendedLines_[lineIndex]);
+
+    // With finite lines
+    for (int i = 0; i < lines_.size(); ++i) {
+        auto [b1, b2] = lineEndpoints(lines_[i]);
+        QPointF hit;
+        if (segmentIntersection(a1, a2, b1, b2, hit)) {
+            addIntersectionPoint(hit);
+        }
+    }
+    // With other extended lines
+    for (int i = 0; i < extendedLines_.size(); ++i) {
+        if (i == lineIndex) continue;
+        auto [b1, b2] = extendedLineEndpoints(extendedLines_[i]);
         QPointF hit;
         if (segmentIntersection(a1, a2, b1, b2, hit)) {
             addIntersectionPoint(hit);
@@ -457,6 +457,9 @@ void CanvasWidget::recomputeAllIntersections() {
     for (int i = 0; i < lines_.size(); ++i) {
         findIntersectionsForLine(i);
     }
+    for (int i = 0; i < extendedLines_.size(); ++i) {
+        findIntersectionsForExtendedLine(i);
+    }
     for (int i = 0; i < circles_.size(); ++i) {
         findIntersectionsForCircle(i);
     }
@@ -466,12 +469,13 @@ void CanvasWidget::recomputeAllIntersections() {
 
 void CanvasWidget::recomputeSelectedIntersections() {
     // Only compute intersections between the selected combination of two objects.
-    if (selectedIndices_.size() + selectedLineIndices_.size() + selectedCircleIndices_.size() != 2) {
+    if (selectedIndices_.size() + selectedLineIndices_.size() + selectedExtendedLineIndices_.size() + selectedCircleIndices_.size() != 2) {
         return;
     }
     // Collect selected objects
     QVector<int> pointSel = selectedIndices_.values().toVector();
     QVector<int> lineSel = selectedLineIndices_.values().toVector();
+    QVector<int> extLineSel = selectedExtendedLineIndices_.values().toVector();
     QVector<int> circleSel = selectedCircleIndices_.values().toVector();
 
     auto addPt = [&](const QPointF &pt) {
@@ -488,21 +492,38 @@ void CanvasWidget::recomputeSelectedIntersections() {
         auto [p1, p2] = lineEndpoints(lines_[lineSel[0]]);
         auto hits = segmentCircleIntersections(p1, p2, circles_[circleSel[0]].center, circles_[circleSel[0]].radius);
         for (const auto &h : hits) addPt(h);
+    } else if (extLineSel.size() == 2) {
+        auto [a1, a2] = extendedLineEndpoints(extendedLines_[extLineSel[0]]);
+        auto [b1, b2] = extendedLineEndpoints(extendedLines_[extLineSel[1]]);
+        QPointF hit;
+        if (segmentIntersection(a1, a2, b1, b2, hit)) addPt(hit);
+    } else if (extLineSel.size() == 1 && lineSel.size() == 1) {
+        auto [a1, a2] = extendedLineEndpoints(extendedLines_[extLineSel[0]]);
+        auto [b1, b2] = lineEndpoints(lines_[lineSel[0]]);
+        QPointF hit;
+        if (segmentIntersection(a1, a2, b1, b2, hit)) addPt(hit);
+    } else if (extLineSel.size() == 1 && circleSel.size() == 1) {
+        auto [p1, p2] = extendedLineEndpoints(extendedLines_[extLineSel[0]]);
+        auto hits = segmentCircleIntersections(p1, p2, circles_[circleSel[0]].center, circles_[circleSel[0]].radius);
+        for (const auto &h : hits) addPt(h);
     } else if (circleSel.size() == 2) {
         auto hits = circleCircleIntersections(circles_[circleSel[0]].center, circles_[circleSel[0]].radius,
                                               circles_[circleSel[1]].center, circles_[circleSel[1]].radius);
         for (const auto &h : hits) addPt(h);
-    } else if (lineSel.size() == 1 && pointSel.size() == 1) {
-        auto [p1, p2] = lineEndpoints(lines_[lineSel[0]]);
+    } else if ((lineSel.size() == 1 || extLineSel.size() == 1) && pointSel.size() == 1) {
+        QPointF p1, p2;
+        if (extLineSel.size() == 1) {
+            std::tie(p1, p2) = extendedLineEndpoints(extendedLines_[extLineSel[0]]);
+        } else {
+            std::tie(p1, p2) = lineEndpoints(lines_[lineSel[0]]);
+        }
         QPointF pt = points_[pointSel[0]].pos;
-        // Add projection if within segment (or infinite if custom)
+        // Add projection if within segment (or infinite if extended)
         QPointF d = p2 - p1;
         double len2 = d.x() * d.x() + d.y() * d.y();
         if (len2 > 1e-12) {
             double t = ((pt.x() - p1.x()) * d.x() + (pt.y() - p1.y()) * d.y()) / len2;
-            if (lines_[lineSel[0]].custom) {
-                // infinite
-            } else {
+            if (lineSel.size() == 1) {
                 if (t < -1e-9 || t > 1.0 + 1e-9) t = std::clamp(t, 0.0, 1.0);
             }
             QPointF proj(p1.x() + t * d.x(), p1.y() + t * d.y());
@@ -527,6 +548,14 @@ void CanvasWidget::findIntersectionsForCircle(int circleIndex) {
     // Circle with lines
     for (const auto &line : lines_) {
         auto [p1, p2] = lineEndpoints(line);
+        auto hits = segmentCircleIntersections(p1, p2, c.center, c.radius);
+        for (const auto &h : hits) {
+            addIntersectionPoint(h);
+        }
+    }
+    // Circle with extended lines
+    for (const auto &line : extendedLines_) {
+        auto [p1, p2] = extendedLineEndpoints(line);
         auto hits = segmentCircleIntersections(p1, p2, c.center, c.radius);
         for (const auto &h : hits) {
             addIntersectionPoint(h);
@@ -582,12 +611,29 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
     painter.setPen(QPen(Qt::blue, 2));
     for (int i = 0; i < lines_.size(); ++i) {
         const auto &line = lines_[i];
-        if ((!line.custom) && (line.a < 0 || line.b < 0 || line.a >= points_.size() || line.b >= points_.size())) continue;
+        if ((line.a < 0 || line.b < 0 || line.a >= points_.size() || line.b >= points_.size())) continue;
         auto [p1, p2] = lineEndpoints(line);
         bool selected = selectedLineIndices_.contains(i);
         painter.setPen(QPen(selected ? Qt::darkBlue : Qt::blue, selected ? 4 : 2));
         painter.drawLine(map(p1.x(), p1.y()), map(p2.x(), p2.y()));
         // Label at midpoint
+        QPointF mid = (p1 + p2) / 2.0;
+        painter.setPen(Qt::black);
+        painter.setFont([&]{
+            QFont f = painter.font();
+            f.setPointSizeF(9.0);
+            return f;
+        }());
+        painter.drawText(map(mid.x(), mid.y()) + QPointF(6, -6), line.label);
+    }
+
+    painter.setPen(QPen(Qt::darkCyan, 2, Qt::DashLine));
+    for (int i = 0; i < extendedLines_.size(); ++i) {
+        const auto &line = extendedLines_[i];
+        auto [p1, p2] = extendedLineEndpoints(line);
+        bool selected = selectedExtendedLineIndices_.contains(i);
+        painter.setPen(QPen(selected ? Qt::darkCyan : Qt::darkCyan, selected ? 4 : 2, Qt::DashLine));
+        painter.drawLine(map(p1.x(), p1.y()), map(p2.x(), p2.y()));
         QPointF mid = (p1 + p2) / 2.0;
         painter.setPen(Qt::black);
         painter.setFont([&]{
@@ -665,6 +711,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     }
 
     int hitLine = -1;
+    int hitExtendedLine = -1;
     double bestLineDist = tolerancePx;  // threshold in px
     auto pointToSegmentDistance = [](const QPointF &p, const QPointF &a, const QPointF &b, bool infinite) -> double {
         const double dx = b.x() - a.x();
@@ -686,17 +733,30 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     };
     for (int i = 0; i < lines_.size(); ++i) {
         const auto &line = lines_[i];
-        if (!line.custom && (line.a < 0 || line.b < 0 || line.a >= points_.size() || line.b >= points_.size())) continue;
+        if (line.a < 0 || line.b < 0 || line.a >= points_.size() || line.b >= points_.size()) continue;
         auto [pa, pb] = lineEndpoints(line);
         QPointF a = map(pa);
         QPointF b = map(pb);
-        double dist = pointToSegmentDistance(event->position(), a, b, line.custom || line.custom);
+        double dist = pointToSegmentDistance(event->position(), a, b, false);
         if (dist <= bestLineDist) {
             bestLineDist = dist;
             hitLine = i;
         }
     }
-    bool lineWasSelected = (hitLine >= 0 && selectedLineIndices_.contains(hitLine));
+    for (int i = 0; i < extendedLines_.size(); ++i) {
+        const auto &line = extendedLines_[i];
+        auto [pa, pb] = extendedLineEndpoints(line);
+        QPointF a = map(pa);
+        QPointF b = map(pb);
+        double dist = pointToSegmentDistance(event->position(), a, b, true);
+        if (dist <= bestLineDist) {
+            bestLineDist = dist;
+            hitExtendedLine = i;
+            hitLine = -1;
+        }
+    }
+    bool lineWasSelected = (hitLine >= 0 && selectedLineIndices_.contains(hitLine)) ||
+                           (hitExtendedLine >= 0 && selectedExtendedLineIndices_.contains(hitExtendedLine));
 
     int hitCircle = -1;
     double bestCircleDist = tolerancePx;
@@ -724,6 +784,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             selectedIndices_.clear();
             selectedIndices_.insert(hitPoint);
             selectedLineIndices_.clear();
+            selectedExtendedLineIndices_.clear();
             selectedCircleIndices_.clear();
             pointSelectionOrder_.clear();
             pointSelectionOrder_.append(hitPoint);
@@ -735,6 +796,19 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         } else {
             selectedLineIndices_.clear();
             selectedLineIndices_.insert(hitLine);
+            selectedIndices_.clear();
+            selectedExtendedLineIndices_.clear();
+            selectedCircleIndices_.clear();
+            pointSelectionOrder_.clear();
+        }
+    } else if (hitExtendedLine >= 0) {
+        if (ctrl) {
+            if (selectedExtendedLineIndices_.contains(hitExtendedLine)) selectedExtendedLineIndices_.remove(hitExtendedLine);
+            else selectedExtendedLineIndices_.insert(hitExtendedLine);
+        } else {
+            selectedExtendedLineIndices_.clear();
+            selectedExtendedLineIndices_.insert(hitExtendedLine);
+            selectedLineIndices_.clear();
             selectedIndices_.clear();
             selectedCircleIndices_.clear();
             pointSelectionOrder_.clear();
@@ -748,11 +822,13 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             selectedCircleIndices_.insert(hitCircle);
             selectedIndices_.clear();
             selectedLineIndices_.clear();
+            selectedExtendedLineIndices_.clear();
             pointSelectionOrder_.clear();
         }
     } else if (!ctrl) {
         selectedIndices_.clear();
         selectedLineIndices_.clear();
+        selectedExtendedLineIndices_.clear();
         selectedCircleIndices_.clear();
         pointSelectionOrder_.clear();
     }
@@ -760,14 +836,34 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
 
     bool handledShiftPoint = false;
     // If clicking near a line that was already selected and Shift is held, add a point on that line near the click.
-    if (lineWasSelected && hitLine >= 0 && shift) {
-        auto [pa, pb] = lineEndpoints(lines_[hitLine]);
+    if (lineWasSelected && shift) {
+        QPointF pa, pb;
+        if (hitLine >= 0) {
+            std::tie(pa, pb) = lineEndpoints(lines_[hitLine]);
+        } else if (hitExtendedLine >= 0) {
+            std::tie(pa, pb) = extendedLineEndpoints(extendedLines_[hitExtendedLine]);
+        } else {
+            // fallback: use last selected line index if any
+            if (!selectedLineIndices_.isEmpty()) {
+                int idx = *selectedLineIndices_.constBegin();
+                std::tie(pa, pb) = lineEndpoints(lines_[idx]);
+            } else if (!selectedExtendedLineIndices_.isEmpty()) {
+                int idx = *selectedExtendedLineIndices_.constBegin();
+                std::tie(pa, pb) = extendedLineEndpoints(extendedLines_[idx]);
+            } else {
+                pa = pb = QPointF();
+            }
+        }
         QPointF clickLogical = unmap(event->position());
         QPointF d = pb - pa;
         double len2 = d.x() * d.x() + d.y() * d.y();
         if (len2 > 1e-12) {
             double t = ((clickLogical.x() - pa.x()) * d.x() + (clickLogical.y() - pa.y()) * d.y()) / len2;
-            t = std::clamp(t, 0.0, 1.0);
+            if (hitExtendedLine >= 0 || (!selectedLineIndices_.isEmpty() && hitLine < 0 && !selectedExtendedLineIndices_.isEmpty())) {
+                // treat as infinite
+            } else {
+                t = std::clamp(t, 0.0, 1.0);
+            }
             QPointF proj(pa.x() + t * d.x(), pa.y() + t * d.y());
             addPoint(proj, nextPointLabel());
             // Keep newly added point last in order
@@ -825,28 +921,25 @@ void CanvasWidget::loadPointsFromFile() {
         const auto obj = value.toObject();
         int a = obj.value("a").toInt(-1);
         int b = obj.value("b").toInt(-1);
-        bool custom = obj.value("custom").toBool(false);
         QString label = obj.value("label").toString();
-        QPointF customA, customB;
-        if (custom) {
-            customA.setX(obj.value("customAx").toDouble());
-            customA.setY(obj.value("customAy").toDouble());
-            customB.setX(obj.value("customBx").toDouble());
-            customB.setY(obj.value("customBy").toDouble());
-        }
         if (label.isEmpty()) label = nextLineLabel();
-        if (custom) {
-            Line le;
-            le.a = a;
-            le.b = b;
-            le.custom = true;
-            le.label = label;
-            le.customA = customA;
-            le.customB = customB;
-            lines_.append(le);
+        if (obj.value("custom").toBool(false)) {
+            QPointF customA(obj.value("customAx").toDouble(), obj.value("customAy").toDouble());
+            QPointF customB(obj.value("customBx").toDouble(), obj.value("customBy").toDouble());
+            extendedLines_.append(ExtendedLine(customA, customB, label));
         } else if (a >= 0 && b >= 0) {
-            lines_.append(Line(a, b, label, false));
+            lines_.append(Line(a, b, label));
         }
+    }
+    QJsonArray extArr = root.value("extendedLines").toArray();
+    for (const auto &value : extArr) {
+        if (!value.isObject()) continue;
+        const auto obj = value.toObject();
+        QString label = obj.value("label").toString();
+        QPointF a(obj.value("ax").toDouble(), obj.value("ay").toDouble());
+        QPointF b(obj.value("bx").toDouble(), obj.value("by").toDouble());
+        if (label.isEmpty()) label = nextLineLabel();
+        extendedLines_.append(ExtendedLine(a, b, label));
     }
     QJsonArray circlesArr = root.value("circles").toArray();
     for (const auto &value : circlesArr) {
@@ -855,8 +948,10 @@ void CanvasWidget::loadPointsFromFile() {
         double cx = obj.value("x").toDouble();
         double cy = obj.value("y").toDouble();
         double r = obj.value("r").toDouble();
+        QString label = obj.value("label").toString();
+        if (label.isEmpty()) label = nextCircleLabel();
         if (r > 0.0) {
-            circles_.append(Circle(QPointF(cx, cy), r));
+            circles_.append(Circle(QPointF(cx, cy), r, label));
         }
     }
 }
@@ -878,15 +973,18 @@ void CanvasWidget::savePointsToFile() const {
         QJsonObject obj;
         obj.insert("a", line.a);
         obj.insert("b", line.b);
-        obj.insert("custom", line.custom);
         obj.insert("label", line.label);
-        if (line.custom) {
-            obj.insert("customAx", line.customA.x());
-            obj.insert("customAy", line.customA.y());
-            obj.insert("customBx", line.customB.x());
-            obj.insert("customBy", line.customB.y());
-        }
         linesArr.append(obj);
+    }
+    QJsonArray extendedArr;
+    for (const auto &line : extendedLines_) {
+        QJsonObject obj;
+        obj.insert("ax", line.a.x());
+        obj.insert("ay", line.a.y());
+        obj.insert("bx", line.b.x());
+        obj.insert("by", line.b.y());
+        obj.insert("label", line.label);
+        extendedArr.append(obj);
     }
     QJsonArray circlesArr;
     for (const auto &circle : circles_) {
@@ -894,11 +992,13 @@ void CanvasWidget::savePointsToFile() const {
         obj.insert("x", circle.center.x());
         obj.insert("y", circle.center.y());
         obj.insert("r", circle.radius);
+        obj.insert("label", circle.label);
         circlesArr.append(obj);
     }
     QJsonObject root;
     root.insert("points", pointsArr);
     root.insert("lines", linesArr);
+    root.insert("extendedLines", extendedArr);
     root.insert("circles", circlesArr);
     QJsonDocument doc(root);
 

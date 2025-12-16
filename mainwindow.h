@@ -14,7 +14,6 @@ public:
 private:
     CanvasWidget *canvas_ = nullptr;
     int pointCounter_ = 1;
-    void showAddPointDialog();
     void onAddLineClicked();
     void onExtendLineClicked();
     void onAddCircleClicked();

@@ -37,22 +37,32 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
 
 private:
-    struct Point {
+    struct Object {
+        virtual ~Object() = default;
+    };
+    struct Point : public Object {
         QPointF pos;
         QString label;
+        Point() = default;
+        Point(const QPointF &p, const QString &l) : pos(p), label(l) {}
     };
-    struct Line {
-        int a;
-        int b;
+    struct Line : public Object {
+        int a = -1;
+        int b = -1;
         bool extended = false;
         QString label;
         bool custom = false;
         QPointF customA;
         QPointF customB;
+        Line() = default;
+        Line(int aIn, int bIn, bool ext, const QString &lab, bool customIn = false, const QPointF &ca = QPointF(), const QPointF &cb = QPointF())
+            : a(aIn), b(bIn), extended(ext), label(lab), custom(customIn), customA(ca), customB(cb) {}
     };
-    struct Circle {
+    struct Circle : public Object {
         QPointF center;
         double radius = 0.0;
+        Circle() = default;
+        Circle(const QPointF &c, double r) : center(c), radius(r) {}
     };
     QVector<Point> points_;
     QVector<Line> lines_;

@@ -88,7 +88,7 @@ bool CanvasWidget::addPoint(const QPointF &point, const QString &label) {
     if (hasPoint(point)) {
         return false;
     }
-    points_.append({point, label});
+    points_.append(Point(point, label));
     savePointsToFile();
     update();
     return true;
@@ -225,7 +225,7 @@ bool CanvasWidget::addLineBetweenSelected(const QString &label) {
         }
     }
     QString useLabel = label.isEmpty() ? nextLineLabel() : label;
-    lines_.append({a, b, false, useLabel});
+    lines_.append(Line(a, b, false, useLabel));
     savePointsToFile();
     update();
     return true;
@@ -253,7 +253,7 @@ bool CanvasWidget::addCircle(const QPointF &center, double radius) {
     if (radius <= 0.0) {
         return false;
     }
-    circles_.append({center, radius});
+    circles_.append(Circle(center, radius));
     savePointsToFile();
     update();
     return true;
@@ -329,7 +329,7 @@ bool CanvasWidget::deleteSelected() {
             changed = true;
             continue;
         }
-        newLines.append({na, nb, line.extended, line.label, false, {}, {}});
+        newLines.append(Line(na, nb, line.extended, line.label));
     }
 
     QVector<Circle> newCircles;
@@ -753,7 +753,7 @@ void CanvasWidget::loadPointsFromFile() {
         double y = obj.value("y").toDouble();
         QString label = obj.value("label").toString();
         if (label.isEmpty()) label = QStringLiteral("P");
-        points_.append({QPointF(x, y), label});
+    points_.append(Point(QPointF(x, y), label));
     }
     QJsonArray linesArr = root.value("lines").toArray();
     for (const auto &value : linesArr) {
@@ -783,7 +783,7 @@ void CanvasWidget::loadPointsFromFile() {
             le.customB = customB;
             lines_.append(le);
         } else if (a >= 0 && b >= 0) {
-            lines_.append({a, b, extended, label, false, {}, {}});
+            lines_.append(Line(a, b, extended, label));
         }
     }
     QJsonArray circlesArr = root.value("circles").toArray();
@@ -794,7 +794,7 @@ void CanvasWidget::loadPointsFromFile() {
         double cy = obj.value("y").toDouble();
         double r = obj.value("r").toDouble();
         if (r > 0.0) {
-            circles_.append({QPointF(cx, cy), r});
+            circles_.append(Circle(QPointF(cx, cy), r));
         }
     }
 }

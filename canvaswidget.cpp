@@ -758,8 +758,9 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     }
     update();
 
-    // If clicking near a line that was already selected, add a point on that line near the click.
-    if (lineWasSelected && hitLine >= 0) {
+    bool handledShiftPoint = false;
+    // If clicking near a line that was already selected and Shift is held, add a point on that line near the click.
+    if (lineWasSelected && hitLine >= 0 && shift) {
         auto [pa, pb] = lineEndpoints(lines_[hitLine]);
         QPointF clickLogical = unmap(event->position());
         QPointF d = pb - pa;
@@ -772,11 +773,12 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             // Keep newly added point last in order
             pointSelectionOrder_.removeAll(points_.size() - 1);
             pointSelectionOrder_.append(points_.size() - 1);
+            handledShiftPoint = true;
         }
     }
 
     // Shift+click anywhere adds a point at that canvas location.
-    if (shift) {
+    if (shift && !handledShiftPoint) {
         QPointF logical = unmap(event->position());
         addPoint(logical, nextPointLabel());
         pointSelectionOrder_.removeAll(points_.size() - 1);

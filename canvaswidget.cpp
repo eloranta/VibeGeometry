@@ -221,8 +221,7 @@ bool CanvasWidget::addLineBetweenSelected(const QString &label) {
             return false;
         }
     }
-    QString useLabel = label.isEmpty() ? nextLineLabel() : label;
-    lines_.append({a, b, false, useLabel});
+    lines_.append({a, b, false, label});
     findIntersectionsForLine(lines_.size() - 1);
     savePointsToFile();
     update();
@@ -523,6 +522,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             hitLine = i;
         }
     }
+    bool lineWasSelected = (hitLine >= 0 && selectedLineIndices_.contains(hitLine));
 
     int hitCircle = -1;
     double bestCircleDist = tolerancePx;
@@ -575,6 +575,23 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         selectedCircleIndices_.clear();
     }
     update();
+
+    // If clicking near a line that was already selected, add a point on that line near the click.
+    if (lineWasSelected && hitLine >= 0) {
+        auto [pa, pb] = lineEndpoints(lines_[hitLine]);
+        // Map click to logical coordinates.
+        QPointF clickLogical((event->position().x() - origin.x()) / scale,
+                             -(event->position().y() - origin.y()) / scale);
+        QPointF d = pb - pa;
+        double len2 = d.x() * d.x() + d.y() * d.y();
+        if (len2 > 1e-12) {
+            double t = ((clickLogical.x() - pa.x()) * d.x() + (clickLogical.y() - pa.y()) * d.y()) / len2;
+            t = std::clamp(t, 0.0, 1.0);
+            QPointF proj(pa.x() + t * d.x(), pa.y() + t * d.y());
+            addPoint(proj, nextPointLabel());
+        }
+    }
+
     QWidget::mousePressEvent(event);
 }
 

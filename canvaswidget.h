@@ -18,6 +18,8 @@ public:
     bool extendSelectedLines();
     bool addCircle(const QPointF &center, double radius);
     bool selectedPoint(QPointF &point) const;
+    QList<int> selectedIndices() const { return selectedIndices_.values(); }
+    QPointF pointAt(int index) const { return points_.at(index).pos; }
     bool deleteSelected();
     void deleteAll();
     int selectedCount() const;

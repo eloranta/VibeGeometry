@@ -13,6 +13,7 @@
 #include <QPointF>
 #include <QCoreApplication>
 #include <QDir>
+#include <QtMath>
 
 #include "canvaswidget.h"
 
@@ -121,10 +122,7 @@ void MainWindow::onAddLineClicked() {
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
     if (dialog.exec() == QDialog::Accepted) {
-        QString label = labelEdit->text().trimmed();
-        if (label.isEmpty()) {
-            label = canvas_->suggestedLineLabel();
-        }
+        QString label = labelEdit->text();
         if (!canvas_->addLineBetweenSelected(label)) {
             QMessageBox::information(this, "Line Exists", "A line between those points already exists.");
         }
@@ -144,36 +142,21 @@ void MainWindow::onExtendLineClicked() {
 }
 
 void MainWindow::onAddCircleClicked() {
-    QPointF center;
-    if (!canvas_->selectedPoint(center)) {
-        QMessageBox::information(this, "Select Center", "Select a point to use as the circle center.");
+    if (canvas_->selectedCount() != 2) {
+        QMessageBox::information(this, "Select Points", "Select exactly two points (Ctrl+click) to define center and radius.");
         return;
     }
-
-    QDialog dialog(this);
-    dialog.setWindowTitle("Add Circle");
-    auto *form = new QFormLayout(&dialog);
-    auto *radiusSpin = new QDoubleSpinBox(&dialog);
-    radiusSpin->setRange(0.0, 10000.0);
-    radiusSpin->setDecimals(3);
-    radiusSpin->setSingleStep(0.1);
-    radiusSpin->setValue(1.0);
-    form->addRow("Radius:", radiusSpin);
-
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
-    form->addWidget(buttons);
-    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-
-    if (dialog.exec() == QDialog::Accepted) {
-        double r = radiusSpin->value();
-        if (r <= 0.0) {
-            QMessageBox::information(this, "Invalid Radius", "Radius must be greater than zero.");
-            return;
-        }
-        canvas_->addCircle(center, r);
-        pointCounter_ = canvas_->pointCount() + 1;
+    QList<int> indices = canvas_->selectedIndices();
+    std::sort(indices.begin(), indices.end());
+    QPointF center = canvas_->pointAt(indices[0]);
+    QPointF edge = canvas_->pointAt(indices[1]);
+    double r = std::hypot(center.x() - edge.x(), center.y() - edge.y());
+    if (r <= 0.0) {
+        QMessageBox::information(this, "Invalid Radius", "The two points must not be identical.");
+        return;
     }
+    canvas_->addCircle(center, r);
+    pointCounter_ = canvas_->pointCount() + 1;
 }
 
 void MainWindow::onDeleteClicked() {

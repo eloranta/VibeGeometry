@@ -43,6 +43,9 @@ private:
         int b;
         bool extended = false;
         QString label;
+        bool custom = false;
+        QPointF customA;
+        QPointF customB;
     };
     struct CircleEntry {
         QPointF center;

@@ -221,7 +221,8 @@ bool CanvasWidget::addLineBetweenSelected(const QString &label) {
             return false;
         }
     }
-    lines_.append({a, b, false, label});
+    QString useLabel = label.isEmpty() ? nextLineLabel() : label;
+    lines_.append({a, b, false, useLabel});
     findIntersectionsForLine(lines_.size() - 1);
     savePointsToFile();
     update();

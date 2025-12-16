@@ -112,23 +112,8 @@ void MainWindow::onAddLineClicked() {
         QMessageBox::information(this, "Select Points", "Select at least two points (Ctrl+click to multi-select) to add a line.");
         return;
     }
-    QDialog dialog(this);
-    dialog.setWindowTitle("Add Line");
-    auto *form = new QFormLayout(&dialog);
-    auto *labelEdit = new QLineEdit(&dialog);
-    labelEdit->setText(canvas_->suggestedLineLabel());
-    labelEdit->setMaxLength(16);
-    form->addRow("Label:", labelEdit);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
-    form->addWidget(buttons);
-    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-
-    if (dialog.exec() == QDialog::Accepted) {
-        QString label = labelEdit->text();
-        if (!canvas_->addLineBetweenSelected(label)) {
-            QMessageBox::information(this, "Line Exists", "A line between those points already exists.");
-        }
+    if (!canvas_->addLineBetweenSelected()) {
+        QMessageBox::information(this, "Line Exists", "A line between those points already exists.");
     }
     pointCounter_ = canvas_->pointCount() + 1;
 }

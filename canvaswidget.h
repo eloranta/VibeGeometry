@@ -50,13 +50,17 @@ private:
     struct Line : public Object {
         int a = -1;
         int b = -1;
-        bool extended = false;
         bool custom = false;
         QPointF customA;
         QPointF customB;
         Line() = default;
-        Line(int aIn, int bIn, bool ext, const QString &lab, bool customIn = false, const QPointF &ca = QPointF(), const QPointF &cb = QPointF())
-            : Object(lab), a(aIn), b(bIn), extended(ext), custom(customIn), customA(ca), customB(cb) {}
+        Line(int aIn, int bIn, const QString &lab, bool customIn = false, const QPointF &ca = QPointF(), const QPointF &cb = QPointF())
+            : Object(lab), a(aIn), b(bIn), custom(customIn), customA(ca), customB(cb) {}
+    };
+    struct ExtendedLine : public Line {
+        ExtendedLine() = default;
+        ExtendedLine(int aIn, int bIn, const QString &lab, bool customIn = false, const QPointF &ca = QPointF(), const QPointF &cb = QPointF())
+            : Line(aIn, bIn, lab, customIn, ca, cb) {}
     };
     struct Circle : public Object {
         QPointF center;

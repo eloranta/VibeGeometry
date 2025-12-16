@@ -38,32 +38,33 @@ protected:
 
 private:
     struct Object {
+        QString label;
+        explicit Object(const QString &l = QString()) : label(l) {}
         virtual ~Object() = default;
     };
     struct Point : public Object {
         QPointF pos;
-        QString label;
         Point() = default;
-        Point(const QPointF &p, const QString &l) : pos(p), label(l) {}
+        Point(const QPointF &p, const QString &l) : Object(l), pos(p) {}
     };
     struct Line : public Object {
         int a = -1;
         int b = -1;
         bool extended = false;
-        QString label;
         bool custom = false;
         QPointF customA;
         QPointF customB;
         Line() = default;
         Line(int aIn, int bIn, bool ext, const QString &lab, bool customIn = false, const QPointF &ca = QPointF(), const QPointF &cb = QPointF())
-            : a(aIn), b(bIn), extended(ext), label(lab), custom(customIn), customA(ca), customB(cb) {}
+            : Object(lab), a(aIn), b(bIn), extended(ext), custom(customIn), customA(ca), customB(cb) {}
     };
     struct Circle : public Object {
         QPointF center;
         double radius = 0.0;
         Circle() = default;
-        Circle(const QPointF &c, double r) : center(c), radius(r) {}
+        Circle(const QPointF &c, double r, const QString &lab = QString()) : Object(lab), center(c), radius(r) {}
     };
+
     QVector<Point> points_;
     QVector<Line> lines_;
     QVector<Circle> circles_;
@@ -78,6 +79,7 @@ private:
     void addIntersectionPoint(const QPointF &pt);
     QString nextPointLabel() const;
     QString nextLineLabel() const;
+    QString nextCircleLabel() const;
     std::pair<QPointF, QPointF> lineEndpoints(const Line &line) const;
     void findIntersectionsForLine(int lineIndex);
     void findIntersectionsForCircle(int circleIndex);

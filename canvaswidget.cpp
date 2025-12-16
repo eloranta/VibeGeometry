@@ -131,6 +131,10 @@ QString CanvasWidget::suggestedLineLabel() const {
     return nextLineLabel();
 }
 
+QString CanvasWidget::nextCircleLabel() const {
+    return QString("C%1").arg(circles_.size() + 1);
+}
+
 void CanvasWidget::addIntersectionPoint(const QPointF &pt) {
     if (!hasPoint(pt)) {
         addPoint(pt, nextPointLabel());
@@ -253,7 +257,7 @@ bool CanvasWidget::addCircle(const QPointF &center, double radius) {
     if (radius <= 0.0) {
         return false;
     }
-    circles_.append(Circle(center, radius));
+    circles_.append(Circle(center, radius, nextCircleLabel()));
     savePointsToFile();
     update();
     return true;
@@ -275,10 +279,10 @@ bool CanvasWidget::addNormalAtPoint(int lineIndex, const QPointF &point) {
     normalLine.a = -1;
     normalLine.b = -1;
     normalLine.extended = true;
-    normalLine.label = nextLineLabel();
     normalLine.custom = true;
     normalLine.customA = a;
     normalLine.customB = b;
+    normalLine.label = nextLineLabel();
     lines_.append(normalLine);
     savePointsToFile();
     update();
@@ -553,6 +557,15 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
         QPointF topLeft = map(circle.center.x() - circle.radius, circle.center.y() + circle.radius);
         QPointF bottomRight = map(circle.center.x() + circle.radius, circle.center.y() - circle.radius);
         painter.drawEllipse(QRectF(topLeft, bottomRight));
+        // Label near top-right of circle
+        painter.setPen(Qt::black);
+        painter.setFont([&]{
+            QFont f = painter.font();
+            f.setPointSizeF(9.0);
+            return f;
+        }());
+        QPointF labelPos = map(circle.center.x() + circle.radius, circle.center.y() + circle.radius);
+        painter.drawText(labelPos + QPointF(4, -4), circle.label);
     }
 
     const double radiusPixels = 4.0;
@@ -753,7 +766,7 @@ void CanvasWidget::loadPointsFromFile() {
         double y = obj.value("y").toDouble();
         QString label = obj.value("label").toString();
         if (label.isEmpty()) label = QStringLiteral("P");
-    points_.append(Point(QPointF(x, y), label));
+        points_.append(Point(QPointF(x, y), label));
     }
     QJsonArray linesArr = root.value("lines").toArray();
     for (const auto &value : linesArr) {

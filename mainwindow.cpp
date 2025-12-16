@@ -134,8 +134,11 @@ void MainWindow::onAddCircleClicked() {
         QMessageBox::information(this, "Select Points", "Select exactly two points (Ctrl+click) to define center and radius.");
         return;
     }
-    QList<int> indices = canvas_->selectedIndices();
-    std::sort(indices.begin(), indices.end());
+    QList<int> indices = canvas_->selectedPointsOrdered();
+    if (indices.size() != 2) {
+        indices = canvas_->selectedIndices();
+        std::sort(indices.begin(), indices.end());
+    }
     QPointF center = canvas_->pointAt(indices[0]);
     QPointF edge = canvas_->pointAt(indices[1]);
     double r = std::hypot(center.x() - edge.x(), center.y() - edge.y());

@@ -314,7 +314,15 @@ bool CanvasWidget::deleteSelected() {
             changed = true;
             continue;
         }
+        if (line.custom) {
+            newLines.append(line);
+            continue;
+        }
         if (removePoints.contains(line.a) || removePoints.contains(line.b)) {
+            changed = true;
+            continue;
+        }
+        if (line.a < 0 || line.b < 0 || line.a >= indexMap.size() || line.b >= indexMap.size()) {
             changed = true;
             continue;
         }
@@ -324,7 +332,7 @@ bool CanvasWidget::deleteSelected() {
             changed = true;
             continue;
         }
-        newLines.append({na, nb, line.extended, line.label});
+        newLines.append({na, nb, line.extended, line.label, false, {}, {}});
     }
 
     QVector<CircleEntry> newCircles;
@@ -581,11 +589,15 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         if (ctrl) {
             if (selectedIndices_.contains(hitPoint)) selectedIndices_.remove(hitPoint);
             else selectedIndices_.insert(hitPoint);
+            pointSelectionOrder_.removeAll(hitPoint);
+            pointSelectionOrder_.append(hitPoint);
         } else {
             selectedIndices_.clear();
             selectedIndices_.insert(hitPoint);
             selectedLineIndices_.clear();
             selectedCircleIndices_.clear();
+            pointSelectionOrder_.clear();
+            pointSelectionOrder_.append(hitPoint);
         }
     } else if (hitLine >= 0) {
         if (ctrl) {
@@ -596,6 +608,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             selectedLineIndices_.insert(hitLine);
             selectedIndices_.clear();
             selectedCircleIndices_.clear();
+            pointSelectionOrder_.clear();
         }
     } else if (hitCircle >= 0) {
         if (ctrl) {
@@ -606,11 +619,13 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             selectedCircleIndices_.insert(hitCircle);
             selectedIndices_.clear();
             selectedLineIndices_.clear();
+            pointSelectionOrder_.clear();
         }
     } else if (!ctrl) {
         selectedIndices_.clear();
         selectedLineIndices_.clear();
         selectedCircleIndices_.clear();
+        pointSelectionOrder_.clear();
     }
     update();
 
@@ -625,6 +640,9 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             t = std::clamp(t, 0.0, 1.0);
             QPointF proj(pa.x() + t * d.x(), pa.y() + t * d.y());
             addPoint(proj, nextPointLabel());
+            // Keep newly added point last in order
+            pointSelectionOrder_.removeAll(points_.size() - 1);
+            pointSelectionOrder_.append(points_.size() - 1);
         }
     }
 
@@ -632,6 +650,8 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     if (shift) {
         QPointF logical = unmap(event->position());
         addPoint(logical, nextPointLabel());
+        pointSelectionOrder_.removeAll(points_.size() - 1);
+        pointSelectionOrder_.append(points_.size() - 1);
     }
 
     QWidget::mousePressEvent(event);

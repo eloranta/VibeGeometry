@@ -20,6 +20,7 @@ public:
     bool selectedPoint(QPointF &point) const;
     bool addNormalAtPoint(int lineIndex, const QPointF &point);
     QList<int> selectedIndices() const { return selectedIndices_.values(); }
+    QList<int> selectedPointsOrdered() const { return pointSelectionOrder_; }
     int selectedLineIndex() const { return selectedLineIndices_.isEmpty() ? -1 : *selectedLineIndices_.constBegin(); }
     QPointF pointAt(int index) const { return points_.at(index).pos; }
     bool deleteSelected();
@@ -58,6 +59,7 @@ private:
     QSet<int> selectedIndices_;
     QSet<int> selectedLineIndices_;
     QSet<int> selectedCircleIndices_;
+    QList<int> pointSelectionOrder_;
 
     void loadPointsFromFile();
     void savePointsToFile() const;

@@ -37,11 +37,11 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
 
 private:
-    struct PointEntry {
+    struct Point {
         QPointF pos;
         QString label;
     };
-    struct LineEntry {
+    struct Line {
         int a;
         int b;
         bool extended = false;
@@ -50,13 +50,13 @@ private:
         QPointF customA;
         QPointF customB;
     };
-    struct CircleEntry {
+    struct Circle {
         QPointF center;
         double radius = 0.0;
     };
-    QVector<PointEntry> points_;
-    QVector<LineEntry> lines_;
-    QVector<CircleEntry> circles_;
+    QVector<Point> points_;
+    QVector<Line> lines_;
+    QVector<Circle> circles_;
     QString storagePath_;
     QSet<int> selectedIndices_;
     QSet<int> selectedLineIndices_;
@@ -68,7 +68,7 @@ private:
     void addIntersectionPoint(const QPointF &pt);
     QString nextPointLabel() const;
     QString nextLineLabel() const;
-    std::pair<QPointF, QPointF> lineEndpoints(const LineEntry &line) const;
+    std::pair<QPointF, QPointF> lineEndpoints(const Line &line) const;
     void findIntersectionsForLine(int lineIndex);
     void findIntersectionsForCircle(int circleIndex);
 };

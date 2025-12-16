@@ -137,7 +137,7 @@ void CanvasWidget::addIntersectionPoint(const QPointF &pt) {
     }
 }
 
-std::pair<QPointF, QPointF> CanvasWidget::lineEndpoints(const LineEntry &line) const {
+std::pair<QPointF, QPointF> CanvasWidget::lineEndpoints(const Line &line) const {
     if (line.custom) {
         return {line.customA, line.customB};
     }
@@ -271,7 +271,7 @@ bool CanvasWidget::addNormalAtPoint(int lineIndex, const QPointF &point) {
     const double span = 20.0;  // enough to cross the -5..5 box
     QPointF a = point + dir * span;
     QPointF b = point - dir * span;
-    LineEntry normalLine;
+    Line normalLine;
     normalLine.a = -1;
     normalLine.b = -1;
     normalLine.extended = true;
@@ -289,7 +289,7 @@ bool CanvasWidget::deleteSelected() {
     bool changed = false;
     QSet<int> removePoints = selectedIndices_;
     QVector<int> indexMap(points_.size(), -1);
-    QVector<PointEntry> newPoints;
+    QVector<Point> newPoints;
     if (!removePoints.isEmpty()) {
         for (int i = 0; i < points_.size(); ++i) {
             if (removePoints.contains(i)) {
@@ -304,7 +304,7 @@ bool CanvasWidget::deleteSelected() {
         }
     }
 
-    QVector<LineEntry> newLines;
+    QVector<Line> newLines;
     for (int i = 0; i < lines_.size(); ++i) {
         const auto &line = lines_[i];
         if (selectedLineIndices_.contains(i)) {
@@ -332,7 +332,7 @@ bool CanvasWidget::deleteSelected() {
         newLines.append({na, nb, line.extended, line.label, false, {}, {}});
     }
 
-    QVector<CircleEntry> newCircles;
+    QVector<Circle> newCircles;
     for (int i = 0; i < circles_.size(); ++i) {
         if (selectedCircleIndices_.contains(i)) {
             changed = true;
@@ -773,7 +773,7 @@ void CanvasWidget::loadPointsFromFile() {
         }
         if (label.isEmpty()) label = nextLineLabel();
         if (custom) {
-            LineEntry le;
+            Line le;
             le.a = a;
             le.b = b;
             le.extended = extended;

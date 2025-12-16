@@ -48,6 +48,7 @@ MainWindow::MainWindow(QWidget *parent)
     auto *addCircleBtn = new QPushButton("Circle", central);
     auto *intersectBtn = new QPushButton("Normal", central);
     auto *intersectionsBtn = new QPushButton("Intersect", central);
+    auto *labelBtn = new QPushButton("Label", central);
     auto *deleteBtn = new QPushButton("Delete", central);
     auto *deleteAllBtn = new QPushButton("Delete All", central);
     controls->addWidget(addLineBtn);
@@ -55,6 +56,7 @@ MainWindow::MainWindow(QWidget *parent)
     controls->addWidget(addCircleBtn);
     controls->addWidget(intersectBtn);
     controls->addWidget(intersectionsBtn);
+    controls->addWidget(labelBtn);
     controls->addWidget(deleteBtn);
     controls->addWidget(deleteAllBtn);
     controls->addStretch(1);
@@ -65,6 +67,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(addCircleBtn, &QPushButton::clicked, this, &MainWindow::onAddCircleClicked);
     connect(intersectBtn, &QPushButton::clicked, this, &MainWindow::onIntersectClicked);
     connect(intersectionsBtn, &QPushButton::clicked, this, &MainWindow::onIntersectionsClicked);
+    connect(labelBtn, &QPushButton::clicked, this, &MainWindow::onEditLabelClicked);
     connect(deleteBtn, &QPushButton::clicked, this, &MainWindow::onDeleteClicked);
     connect(deleteAllBtn, &QPushButton::clicked, this, &MainWindow::onDeleteAllClicked);
 
@@ -149,6 +152,10 @@ void MainWindow::onIntersectClicked() {
 void MainWindow::onIntersectionsClicked() {
     canvas_->recomputeSelectedIntersections();
     pointCounter_ = canvas_->pointCount() + 1;
+}
+
+void MainWindow::onEditLabelClicked() {
+    QMessageBox::information(this, "Label", "Label editing is not implemented yet.");
 }
 
 void MainWindow::onPrintClicked() {

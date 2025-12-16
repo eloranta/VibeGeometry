@@ -19,6 +19,7 @@ private:
     void onAddCircleClicked();
     void onIntersectClicked();
     void onIntersectionsClicked();
+    void onEditLabelClicked();
     void onDeleteClicked();
     void onDeleteAllClicked();
     void onPrintClicked();

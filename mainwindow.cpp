@@ -36,7 +36,7 @@ MainWindow::MainWindow(QWidget *parent)
     auto *addLineBtn = new QPushButton("Add Line", central);
     auto *extendLineBtn = new QPushButton("Extend Line", central);
     auto *addCircleBtn = new QPushButton("Add Circle", central);
-    auto *intersectBtn = new QPushButton("Intersect", central);
+    auto *intersectBtn = new QPushButton("Normal", central);
     auto *deleteBtn = new QPushButton("Delete", central);
     auto *deleteAllBtn = new QPushButton("Delete All", central);
     controls->addWidget(addPointBtn);

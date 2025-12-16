@@ -21,4 +21,5 @@ private:
     void onIntersectionsClicked();
     void onDeleteClicked();
     void onDeleteAllClicked();
+    void onPrintClicked();
 };

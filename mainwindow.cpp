@@ -7,6 +7,8 @@
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QMenu>
+#include <QMenuBar>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -14,6 +16,9 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QtMath>
+#include <QPrinter>
+#include <QPrintDialog>
+#include <QPainter>
 
 #include "canvaswidget.h"
 
@@ -30,6 +35,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     layout->addWidget(canvas_, 1);
     pointCounter_ = canvas_->pointCount() + 1;
+
+    // Menu bar with File -> Print
+    QMenu *fileMenu = menuBar()->addMenu(tr("File"));
+    QAction *printAction = fileMenu->addAction(tr("Print..."));
+    connect(printAction, &QAction::triggered, this, &MainWindow::onPrintClicked);
+
     auto *controls = new QHBoxLayout();
     controls->setSpacing(8);
     auto *addLineBtn = new QPushButton("Connect", central);
@@ -138,4 +149,23 @@ void MainWindow::onIntersectClicked() {
 void MainWindow::onIntersectionsClicked() {
     canvas_->recomputeSelectedIntersections();
     pointCounter_ = canvas_->pointCount() + 1;
+}
+
+void MainWindow::onPrintClicked() {
+    QPrinter printer(QPrinter::HighResolution);
+    QPrintDialog dialog(&printer, this);
+    dialog.setWindowTitle(tr("Print Canvas"));
+    if (dialog.exec() == QDialog::Accepted) {
+        QPainter painter(&printer);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        QRectF pageRect = printer.pageRect(QPrinter::DevicePixel);
+        QSizeF widgetSize = canvas_->size();
+        double xScale = pageRect.width() / widgetSize.width();
+        double yScale = pageRect.height() / widgetSize.height();
+        double scale = std::min(xScale, yScale);
+        painter.translate(pageRect.x() + (pageRect.width() - widgetSize.width() * scale) / 2.0,
+                          pageRect.y() + (pageRect.height() - widgetSize.height() * scale) / 2.0);
+        painter.scale(scale, scale);
+        canvas_->render(&painter);
+    }
 }

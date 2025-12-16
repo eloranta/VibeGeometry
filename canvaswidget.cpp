@@ -476,6 +476,9 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     auto map = [&](const QPointF &p) -> QPointF {
         return QPointF(origin.x() + p.x() * scale, origin.y() - p.y() * scale);
     };
+    auto unmap = [&](const QPointF &p) -> QPointF {
+        return QPointF((p.x() - origin.x()) / scale, -(p.y() - origin.y()) / scale);
+    };
 
     int hitPoint = -1;
     double bestDist2 = std::numeric_limits<double>::max();
@@ -539,6 +542,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     }
 
     bool ctrl = event->modifiers().testFlag(Qt::ControlModifier);
+    bool shift = event->modifiers().testFlag(Qt::ShiftModifier);
     if (hitPoint >= 0) {
         if (ctrl) {
             if (selectedIndices_.contains(hitPoint)) selectedIndices_.remove(hitPoint);
@@ -579,9 +583,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     // If clicking near a line that was already selected, add a point on that line near the click.
     if (lineWasSelected && hitLine >= 0) {
         auto [pa, pb] = lineEndpoints(lines_[hitLine]);
-        // Map click to logical coordinates.
-        QPointF clickLogical((event->position().x() - origin.x()) / scale,
-                             -(event->position().y() - origin.y()) / scale);
+        QPointF clickLogical = unmap(event->position());
         QPointF d = pb - pa;
         double len2 = d.x() * d.x() + d.y() * d.y();
         if (len2 > 1e-12) {
@@ -590,6 +592,12 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             QPointF proj(pa.x() + t * d.x(), pa.y() + t * d.y());
             addPoint(proj, nextPointLabel());
         }
+    }
+
+    // Shift+click anywhere adds a point at that canvas location.
+    if (shift) {
+        QPointF logical = unmap(event->position());
+        addPoint(logical, nextPointLabel());
     }
 
     QWidget::mousePressEvent(event);

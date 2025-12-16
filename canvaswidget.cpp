@@ -529,7 +529,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
 
     int hitLine = -1;
     double bestLineDist = tolerancePx;  // threshold in px
-    auto pointToSegmentDistance = [](const QPointF &p, const QPointF &a, const QPointF &b) -> double {
+    auto pointToSegmentDistance = [](const QPointF &p, const QPointF &a, const QPointF &b, bool infinite) -> double {
         const double dx = b.x() - a.x();
         const double dy = b.y() - a.y();
         const double len2 = dx * dx + dy * dy;
@@ -539,7 +539,9 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             return std::sqrt(dxp * dxp + dyp * dyp);
         }
         double t = ((p.x() - a.x()) * dx + (p.y() - a.y()) * dy) / len2;
-        t = std::clamp(t, 0.0, 1.0);
+        if (!infinite) {
+            t = std::clamp(t, 0.0, 1.0);
+        }
         QPointF proj(a.x() + t * dx, a.y() + t * dy);
         double dxp = p.x() - proj.x();
         double dyp = p.y() - proj.y();
@@ -547,11 +549,11 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     };
     for (int i = 0; i < lines_.size(); ++i) {
         const auto &line = lines_[i];
-        if (line.a < 0 || line.b < 0 || line.a >= points_.size() || line.b >= points_.size()) continue;
+        if (!line.custom && (line.a < 0 || line.b < 0 || line.a >= points_.size() || line.b >= points_.size())) continue;
         auto [pa, pb] = lineEndpoints(line);
         QPointF a = map(pa);
         QPointF b = map(pb);
-        double dist = pointToSegmentDistance(event->position(), a, b);
+        double dist = pointToSegmentDistance(event->position(), a, b, line.custom || line.extended);
         if (dist <= bestLineDist) {
             bestLineDist = dist;
             hitLine = i;

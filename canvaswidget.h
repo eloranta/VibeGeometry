@@ -18,7 +18,9 @@ public:
     bool extendSelectedLines();
     bool addCircle(const QPointF &center, double radius);
     bool selectedPoint(QPointF &point) const;
+    bool addNormalAtPoint(int lineIndex, const QPointF &point);
     QList<int> selectedIndices() const { return selectedIndices_.values(); }
+    int selectedLineIndex() const { return selectedLineIndices_.isEmpty() ? -1 : *selectedLineIndices_.constBegin(); }
     QPointF pointAt(int index) const { return points_.at(index).pos; }
     bool deleteSelected();
     void deleteAll();

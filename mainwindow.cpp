@@ -36,12 +36,14 @@ MainWindow::MainWindow(QWidget *parent)
     auto *addLineBtn = new QPushButton("Add Line", central);
     auto *extendLineBtn = new QPushButton("Extend Line", central);
     auto *addCircleBtn = new QPushButton("Add Circle", central);
+    auto *intersectBtn = new QPushButton("Intersect", central);
     auto *deleteBtn = new QPushButton("Delete", central);
     auto *deleteAllBtn = new QPushButton("Delete All", central);
     controls->addWidget(addPointBtn);
     controls->addWidget(addLineBtn);
     controls->addWidget(extendLineBtn);
     controls->addWidget(addCircleBtn);
+    controls->addWidget(intersectBtn);
     controls->addWidget(deleteBtn);
     controls->addWidget(deleteAllBtn);
     controls->addStretch(1);
@@ -51,6 +53,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(addLineBtn, &QPushButton::clicked, this, &MainWindow::onAddLineClicked);
     connect(extendLineBtn, &QPushButton::clicked, this, &MainWindow::onExtendLineClicked);
     connect(addCircleBtn, &QPushButton::clicked, this, &MainWindow::onAddCircleClicked);
+    connect(intersectBtn, &QPushButton::clicked, this, &MainWindow::onIntersectClicked);
     connect(deleteBtn, &QPushButton::clicked, this, &MainWindow::onDeleteClicked);
     connect(deleteAllBtn, &QPushButton::clicked, this, &MainWindow::onDeleteAllClicked);
 
@@ -170,4 +173,23 @@ void MainWindow::onDeleteClicked() {
 void MainWindow::onDeleteAllClicked() {
     canvas_->deleteAll();
     pointCounter_ = canvas_->pointCount() + 1;
+}
+
+void MainWindow::onIntersectClicked() {
+    if (canvas_->selectedLineCount() != 1 || canvas_->selectedCount() != 1) {
+        QMessageBox::information(this, "Select Line and Point", "Select exactly one line and one point.");
+        return;
+    }
+    int lineIdx = canvas_->selectedLineIndex();
+    int pointIdx = canvas_->selectedIndices().first();
+    if (lineIdx < 0 || pointIdx < 0) {
+        QMessageBox::information(this, "Selection", "Invalid selection.");
+        return;
+    }
+    QPointF p = canvas_->pointAt(pointIdx);
+    if (!canvas_->addNormalAtPoint(lineIdx, p)) {
+        QMessageBox::information(this, "Intersect", "Could not add normal line.");
+    } else {
+        pointCounter_ = canvas_->pointCount() + 1;
+    }
 }

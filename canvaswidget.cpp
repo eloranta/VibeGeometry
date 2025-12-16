@@ -257,6 +257,37 @@ bool CanvasWidget::addCircle(const QPointF &center, double radius) {
     return true;
 }
 
+bool CanvasWidget::addNormalAtPoint(int lineIndex, const QPointF &point) {
+    if (lineIndex < 0 || lineIndex >= lines_.size() || points_.isEmpty()) return false;
+    auto [p1, p2] = lineEndpoints(lines_[lineIndex]);
+    QPointF d = p2 - p1;
+    if (std::abs(d.x()) < 1e-9 && std::abs(d.y()) < 1e-9) return false;
+    // Direction vector perpendicular to d: (-dy, dx)
+    QPointF perp(-d.y(), d.x());
+    QPointF newEnd = point + perp;  // arbitrary length; intersects will be handled
+    // Add a point for the second endpoint
+    if (!hasPoint(newEnd)) {
+        addPoint(newEnd, nextPointLabel());
+    }
+    // Ensure the point exists and get indices
+    int aIndex = -1;
+    int bIndex = -1;
+    for (int i = 0; i < points_.size(); ++i) {
+        if (qFuzzyCompare(points_[i].pos.x(), point.x()) && qFuzzyCompare(points_[i].pos.y(), point.y())) {
+            aIndex = i;
+        }
+        if (qFuzzyCompare(points_[i].pos.x(), newEnd.x()) && qFuzzyCompare(points_[i].pos.y(), newEnd.y())) {
+            bIndex = i;
+        }
+    }
+    if (aIndex == -1 || bIndex == -1 || aIndex == bIndex) return false;
+    lines_.append({aIndex, bIndex, false, nextLineLabel()});
+    findIntersectionsForLine(lines_.size() - 1);
+    savePointsToFile();
+    update();
+    return true;
+}
+
 bool CanvasWidget::deleteSelected() {
     bool changed = false;
     QSet<int> removePoints = selectedIndices_;

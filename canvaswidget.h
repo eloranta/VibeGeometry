@@ -23,7 +23,10 @@ public:
     QList<int> selectedIndices() const { return selectedPointIndices.values(); }
     QList<int> selectedPointsOrdered() const { return pointSelectionOrder; }
     int selectedLineIndex() const { return selectedLineIndices.isEmpty() ? -1 : *selectedLineIndices.constBegin(); }
+    int selectedExtendedLineIndex() const { return selectedExtendedLineIndices.isEmpty() ? -1 : *selectedExtendedLineIndices.constBegin(); }
+    int selectedExtendedLineCount() const { return selectedExtendedLineIndices.size(); }
     QPointF pointAt(int index) const { return points.at(index).positiom; }
+    bool setLabelForSelection(const QString &label);
     bool deleteSelected();
     void deleteAll();
     int selectedCount() const;

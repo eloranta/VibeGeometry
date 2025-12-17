@@ -9,6 +9,7 @@
 #include <QMessageBox>
 #include <QMenu>
 #include <QMenuBar>
+#include <QInputDialog>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -155,7 +156,18 @@ void MainWindow::onIntersectionsClicked() {
 }
 
 void MainWindow::onEditLabelClicked() {
-    QMessageBox::information(this, "Label", "Label editing is not implemented yet.");
+    int totalSelections = canvas_->selectedCount() + canvas_->selectedLineCount() +
+                          canvas_->selectedExtendedLineCount() + canvas_->selectedCircleCount();
+    if (totalSelections != 1) {
+        QMessageBox::information(this, "Label", "Select exactly one item to edit its label.");
+        return;
+    }
+    bool ok = false;
+    QString text = QInputDialog::getText(this, "Edit Label", "Label:", QLineEdit::Normal, QString(), &ok);
+    if (!ok) return;
+    if (!canvas_->setLabelForSelection(text)) {
+        QMessageBox::information(this, "Label", "Could not update the label.");
+    }
 }
 
 void MainWindow::onPrintClicked() {

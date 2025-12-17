@@ -141,6 +141,45 @@ void CanvasWidget::addIntersectionPoint(const QPointF &pt) {
     }
 }
 
+bool CanvasWidget::setLabelForSelection(const QString &label) {
+    int totalSelections = selectedPointIndices.size() + selectedLineIndices.size() +
+                          selectedExtendedLineIndices.size() + selectedCircleIndices.size();
+    if (totalSelections != 1) {
+        return false;
+    }
+    bool changed = false;
+    if (!selectedPointIndices.isEmpty()) {
+        int idx = *selectedPointIndices.constBegin();
+        if (idx >= 0 && idx < points.size()) {
+            points[idx].label = label;
+            changed = true;
+        }
+    } else if (!selectedLineIndices.isEmpty()) {
+        int idx = *selectedLineIndices.constBegin();
+        if (idx >= 0 && idx < lines.size()) {
+            lines[idx].label = label;
+            changed = true;
+        }
+    } else if (!selectedExtendedLineIndices.isEmpty()) {
+        int idx = *selectedExtendedLineIndices.constBegin();
+        if (idx >= 0 && idx < extendedLines.size()) {
+            extendedLines[idx].label = label;
+            changed = true;
+        }
+    } else if (!selectedCircleIndices.isEmpty()) {
+        int idx = *selectedCircleIndices.constBegin();
+        if (idx >= 0 && idx < circles.size()) {
+            circles[idx].label = label;
+            changed = true;
+        }
+    }
+    if (changed) {
+        savePointsToFile();
+        update();
+    }
+    return changed;
+}
+
 std::pair<QPointF, QPointF> CanvasWidget::lineEndpoints(const Line &line) const {
     QPointF p1 = points[line.a].positiom;
     QPointF p2 = points[line.b].positiom;

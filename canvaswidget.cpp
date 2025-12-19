@@ -84,11 +84,17 @@ CanvasWidget::CanvasWidget(const QString &storagePath, QWidget *parent)
     loadPointsFromFile();
 }
 
-bool CanvasWidget::addPoint(const QPointF &point, const QString &label) {
+bool CanvasWidget::addPoint(const QPointF &point, const QString &label, bool selectNew) {
     if (hasPoint(point)) {
         return false;
     }
     points.append(Point(point, label));
+    if (selectNew) {
+        int newIndex = points.size() - 1;
+        selectedPointIndices.insert(newIndex);
+        pointSelectionOrder.removeAll(newIndex);
+        pointSelectionOrder.append(newIndex);
+    }
     savePointsToFile();
     update();
     return true;
@@ -137,7 +143,7 @@ QString CanvasWidget::nextCircleLabel() const {
 
 void CanvasWidget::addIntersectionPoint(const QPointF &pt) {
     if (!hasPoint(pt)) {
-        addPoint(pt, QString());
+        addPoint(pt, QString(), false);
     }
 }
 
@@ -885,10 +891,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
                 t = std::clamp(t, 0.0, 1.0);
             }
             QPointF proj(pa.x() + t * d.x(), pa.y() + t * d.y());
-            addPoint(proj, QString());
-            // Keep newly added point last in order
-            pointSelectionOrder.removeAll(points.size() - 1);
-            pointSelectionOrder.append(points.size() - 1);
+            addPoint(proj, QString(), true);
             handledShiftPoint = true;
         }
     }
@@ -896,9 +899,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     // Shift+click anywhere adds a point at that canvas location.
     if (shift && !handledShiftPoint) {
         QPointF logical = unmap(event->position());
-        addPoint(logical, QString());
-        pointSelectionOrder.removeAll(points.size() - 1);
-        pointSelectionOrder.append(points.size() - 1);
+        addPoint(logical, QString(), true);
     }
 
     QWidget::mousePressEvent(event);

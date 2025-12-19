@@ -12,7 +12,7 @@ class CanvasWidget : public QWidget {
 
 public:
     explicit CanvasWidget(const QString &storagePath = QString(), QWidget *parent = nullptr);
-    bool addPoint(const QPointF &point, const QString &label);
+    bool addPoint(const QPointF &point, const QString &label, bool selectNew = false);
     bool hasPoint(const QPointF &point) const;
     int pointCount() const;
     bool addLineBetweenSelected(const QString &label = QString());

@@ -137,7 +137,7 @@ QString CanvasWidget::nextCircleLabel() const {
 
 void CanvasWidget::addIntersectionPoint(const QPointF &pt) {
     if (!hasPoint(pt)) {
-        addPoint(pt, nextPointLabel());
+        addPoint(pt, QString());
     }
 }
 
@@ -220,8 +220,7 @@ bool CanvasWidget::addLineBetweenSelected(const QString &label) {
             return false;
         }
     }
-    QString useLabel = label.isEmpty() ? nextLineLabel() : label;
-    lines.append(Line(a, b, useLabel));
+    lines.append(Line(a, b, label));
     savePointsToFile();
     update();
     return true;
@@ -307,7 +306,7 @@ bool CanvasWidget::addCircle(const QPointF &center, double radius) {
     if (radius <= 0.0) {
         return false;
     }
-    circles.append(Circle(center, radius, nextCircleLabel()));
+    circles.append(Circle(center, radius, QString()));
     savePointsToFile();
     update();
     return true;
@@ -325,7 +324,7 @@ bool CanvasWidget::addNormalAtPoint(int lineIndex, const QPointF &point) {
     const double span = 20.0;  // enough to cross the -5..5 box
     QPointF a = point + dir * span;
     QPointF b = point - dir * span;
-    extendedLines.append(ExtendedLine(a, b, nextLineLabel()));
+    extendedLines.append(ExtendedLine(a, b, QString()));
     savePointsToFile();
     update();
     return true;
@@ -886,7 +885,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
                 t = std::clamp(t, 0.0, 1.0);
             }
             QPointF proj(pa.x() + t * d.x(), pa.y() + t * d.y());
-            addPoint(proj, nextPointLabel());
+            addPoint(proj, QString());
             // Keep newly added point last in order
             pointSelectionOrder.removeAll(points.size() - 1);
             pointSelectionOrder.append(points.size() - 1);
@@ -897,7 +896,7 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     // Shift+click anywhere adds a point at that canvas location.
     if (shift && !handledShiftPoint) {
         QPointF logical = unmap(event->position());
-        addPoint(logical, nextPointLabel());
+        addPoint(logical, QString());
         pointSelectionOrder.removeAll(points.size() - 1);
         pointSelectionOrder.append(points.size() - 1);
     }
@@ -933,7 +932,6 @@ void CanvasWidget::loadPointsFromFile() {
         double x = obj.value("x").toDouble();
         double y = obj.value("y").toDouble();
         QString label = obj.value("label").toString();
-        if (label.isEmpty()) label = QStringLiteral("P");
         points.append(Point(QPointF(x, y), label));
     }
     QJsonArray linesArr = root.value("lines").toArray();
@@ -943,7 +941,6 @@ void CanvasWidget::loadPointsFromFile() {
         int a = obj.value("a").toInt(-1);
         int b = obj.value("b").toInt(-1);
         QString label = obj.value("label").toString();
-        if (label.isEmpty()) label = nextLineLabel();
         if (obj.value("custom").toBool(false)) {
             QPointF customA(obj.value("customAx").toDouble(), obj.value("customAy").toDouble());
             QPointF customB(obj.value("customBx").toDouble(), obj.value("customBy").toDouble());
@@ -959,7 +956,6 @@ void CanvasWidget::loadPointsFromFile() {
         QString label = obj.value("label").toString();
         QPointF a(obj.value("ax").toDouble(), obj.value("ay").toDouble());
         QPointF b(obj.value("bx").toDouble(), obj.value("by").toDouble());
-        if (label.isEmpty()) label = nextLineLabel();
         extendedLines.append(ExtendedLine(a, b, label));
     }
     QJsonArray circlesArr = root.value("circles").toArray();
@@ -970,7 +966,6 @@ void CanvasWidget::loadPointsFromFile() {
         double cy = obj.value("y").toDouble();
         double r = obj.value("r").toDouble();
         QString label = obj.value("label").toString();
-        if (label.isEmpty()) label = nextCircleLabel();
         if (r > 0.0) {
             circles.append(Circle(QPointF(cx, cy), r, label));
         }

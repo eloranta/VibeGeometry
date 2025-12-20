@@ -22,5 +22,7 @@ private:
     void onEditLabelClicked();
     void onDeleteClicked();
     void onDeleteAllClicked();
+    void onOpenFileClicked();
+    void onSaveAsClicked();
     void onPrintClicked();
 };

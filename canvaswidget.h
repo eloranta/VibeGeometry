@@ -35,6 +35,9 @@ public:
     QString suggestedLineLabel() const;
     void recomputeAllIntersections();
     void recomputeSelectedIntersections();
+    bool loadFromFile(const QString &path);
+    bool saveToFile(const QString &path);
+    QString storageFilePath() const { return storagePath; }
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -81,8 +84,8 @@ private:
     QSet<int> selectedCircleIndices;
     QList<int> pointSelectionOrder;
 
-    void loadPointsFromFile();
-    void savePointsToFile() const;
+    bool loadPointsFromFile();
+    bool savePointsToFile() const;
     void addIntersectionPoint(const QPointF &pt);
     QString nextPointLabel() const;
     QString nextLineLabel() const;
@@ -92,4 +95,5 @@ private:
     void findIntersectionsForLine(int lineIndex);
     void findIntersectionsForExtendedLine(int lineIndex);
     void findIntersectionsForCircle(int circleIndex);
+    bool writePointsToPath(const QString &path) const;
 };

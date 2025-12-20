@@ -11,6 +11,8 @@
 #include <QMenuBar>
 #include <QInputDialog>
 #include <QPushButton>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QPointF>
@@ -39,7 +41,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Menu bar with File -> Print
     QMenu *fileMenu = menuBar()->addMenu(tr("File"));
+    QAction *openAction = fileMenu->addAction(tr("Open..."));
+    QAction *saveAsAction = fileMenu->addAction(tr("Save As..."));
+    fileMenu->addSeparator();
     QAction *printAction = fileMenu->addAction(tr("Print..."));
+    connect(openAction, &QAction::triggered, this, &MainWindow::onOpenFileClicked);
+    connect(saveAsAction, &QAction::triggered, this, &MainWindow::onSaveAsClicked);
     connect(printAction, &QAction::triggered, this, &MainWindow::onPrintClicked);
 
     auto *controls = new QHBoxLayout();
@@ -129,6 +136,39 @@ void MainWindow::onDeleteClicked() {
 void MainWindow::onDeleteAllClicked() {
     canvas_->deleteAll();
     pointCounter_ = canvas_->pointCount() + 1;
+}
+
+void MainWindow::onOpenFileClicked() {
+    QString startPath = canvas_->storageFilePath();
+    QString initialDir = startPath.isEmpty() ? QDir::currentPath() : QFileInfo(startPath).absolutePath();
+    QString filePath = QFileDialog::getOpenFileName(this, tr("Open Points File"), initialDir,
+                                                    tr("JSON Files (*.json);;All Files (*.*)"));
+    if (filePath.isEmpty()) {
+        return;
+    }
+    if (!canvas_->loadFromFile(filePath)) {
+        QMessageBox::warning(this, tr("Open File"), tr("Could not open or parse the selected file."));
+        return;
+    }
+    pointCounter_ = canvas_->pointCount() + 1;
+}
+
+void MainWindow::onSaveAsClicked() {
+    QString startPath = canvas_->storageFilePath();
+    if (startPath.isEmpty()) {
+        startPath = QDir::currentPath();
+    }
+    QString filePath = QFileDialog::getSaveFileName(this, tr("Save Points As"), startPath,
+                                                    tr("JSON Files (*.json);;All Files (*.*)"));
+    if (filePath.isEmpty()) {
+        return;
+    }
+    if (!filePath.endsWith(".json", Qt::CaseInsensitive)) {
+        filePath += ".json";
+    }
+    if (!canvas_->saveToFile(filePath)) {
+        QMessageBox::warning(this, tr("Save File"), tr("Could not save to the selected location."));
+    }
 }
 
 void MainWindow::onIntersectClicked() {

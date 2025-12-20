@@ -905,25 +905,31 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     QWidget::mousePressEvent(event);
 }
 
-void CanvasWidget::loadPointsFromFile() {
+bool CanvasWidget::loadPointsFromFile() {
     if (storagePath.isEmpty()) {
-        return;
+        return false;
     }
     QFile file(storagePath);
     if (!file.exists()) {
-        return;
+        return false;
     }
     if (!file.open(QIODevice::ReadOnly)) {
-        return;
+        return false;
     }
     const auto data = file.readAll();
     file.close();
     auto doc = QJsonDocument::fromJson(data);
     if (!doc.isObject()) {
-        return;
+        return false;
     }
+    selectedPointIndices.clear();
+    selectedLineIndices.clear();
+    selectedExtendedLineIndices.clear();
+    selectedCircleIndices.clear();
+    pointSelectionOrder.clear();
     points.clear();
     lines.clear();
+    extendedLines.clear();
     circles.clear();
     QJsonObject root = doc.object();
     QJsonArray pointsArr = root.value("points").toArray();
@@ -971,11 +977,20 @@ void CanvasWidget::loadPointsFromFile() {
             circles.append(Circle(QPointF(cx, cy), r, label));
         }
     }
+    update();
+    return true;
 }
 
-void CanvasWidget::savePointsToFile() const {
+bool CanvasWidget::savePointsToFile() const {
     if (storagePath.isEmpty()) {
-        return;
+        return false;
+    }
+    return writePointsToPath(storagePath);
+}
+
+bool CanvasWidget::writePointsToPath(const QString &path) const {
+    if (path.isEmpty()) {
+        return false;
     }
     QJsonArray pointsArr;
     for (const auto &entry : points) {
@@ -1019,10 +1034,33 @@ void CanvasWidget::savePointsToFile() const {
     root.insert("circles", circlesArr);
     QJsonDocument doc(root);
 
-    QDir().mkpath(QFileInfo(storagePath).absolutePath());
-    QFile file(storagePath);
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QFile file(path);
+    bool ok = false;
     if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         file.write(doc.toJson(QJsonDocument::Indented));
         file.close();
+        ok = true;
     }
+    return ok;
+}
+
+bool CanvasWidget::loadFromFile(const QString &path) {
+    if (path.isEmpty()) {
+        return false;
+    }
+    QString previousPath = storagePath;
+    storagePath = path;
+    if (loadPointsFromFile()) {
+        return true;
+    }
+    storagePath = previousPath;
+    return false;
+}
+
+bool CanvasWidget::saveToFile(const QString &path) {
+    if (path.isEmpty()) {
+        return false;
+    }
+    return writePointsToPath(path);
 }

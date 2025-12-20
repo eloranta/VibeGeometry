@@ -39,6 +39,9 @@ public:
     bool saveToFile(const QString &path);
     QString storageFilePath() const { return storagePath; }
 
+signals:
+    void pointAdded(const QPointF &point);
+
 protected:
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;

@@ -94,6 +94,7 @@ bool CanvasWidget::addPoint(const QPointF &point, const QString &label, bool sel
         pointSelectionOrder.removeAll(newIndex);
         pointSelectionOrder.append(newIndex);
     }
+    emit pointAdded(point);
     update();
     return true;
 }

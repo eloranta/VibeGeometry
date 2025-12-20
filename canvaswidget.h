@@ -84,8 +84,7 @@ private:
     QSet<int> selectedCircleIndices;
     QList<int> pointSelectionOrder;
 
-    bool loadPointsFromFile();
-    bool savePointsToFile() const;
+    bool loadPointsFromFile(const QString &path);
     void addIntersectionPoint(const QPointF &pt);
     QString nextPointLabel() const;
     QString nextLineLabel() const;

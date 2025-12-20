@@ -81,7 +81,6 @@ CanvasWidget::CanvasWidget(const QString &storagePath, QWidget *parent)
     : QWidget(parent),
       storagePath(storagePath) {
     setMinimumSize(320, 240);
-    loadPointsFromFile();
 }
 
 bool CanvasWidget::addPoint(const QPointF &point, const QString &label, bool selectNew) {
@@ -95,7 +94,6 @@ bool CanvasWidget::addPoint(const QPointF &point, const QString &label, bool sel
         pointSelectionOrder.removeAll(newIndex);
         pointSelectionOrder.append(newIndex);
     }
-    savePointsToFile();
     update();
     return true;
 }
@@ -180,7 +178,6 @@ bool CanvasWidget::setLabelForSelection(const QString &label) {
         }
     }
     if (changed) {
-        savePointsToFile();
         update();
     }
     return changed;
@@ -227,7 +224,6 @@ bool CanvasWidget::addLineBetweenSelected(const QString &label) {
         }
     }
     lines.append(Line(a, b, label));
-    savePointsToFile();
     update();
     return true;
 }
@@ -302,7 +298,6 @@ bool CanvasWidget::extendSelectedLines() {
         selectedLineIndices.clear();
     }
     if (changed) {
-        savePointsToFile();
         update();
     }
     return changed;
@@ -313,7 +308,6 @@ bool CanvasWidget::addCircle(const QPointF &center, double radius) {
         return false;
     }
     circles.append(Circle(center, radius, QString()));
-    savePointsToFile();
     update();
     return true;
 }
@@ -331,7 +325,6 @@ bool CanvasWidget::addNormalAtPoint(int lineIndex, const QPointF &point) {
     QPointF a = point + dir * span;
     QPointF b = point - dir * span;
     extendedLines.append(ExtendedLine(a, b, QString()));
-    savePointsToFile();
     update();
     return true;
 }
@@ -413,7 +406,6 @@ bool CanvasWidget::deleteSelected() {
         selectedLineIndices.clear();
         selectedExtendedLineIndices.clear();
         selectedCircleIndices.clear();
-        savePointsToFile();
         update();
     }
     return changed;
@@ -431,7 +423,6 @@ void CanvasWidget::deleteAll() {
     selectedLineIndices.clear();
     selectedExtendedLineIndices.clear();
     selectedCircleIndices.clear();
-    savePointsToFile();
     update();
 }
 
@@ -507,7 +498,6 @@ void CanvasWidget::recomputeAllIntersections() {
     for (int i = 0; i < circles.size(); ++i) {
         findIntersectionsForCircle(i);
     }
-    savePointsToFile();
     update();
 }
 
@@ -582,7 +572,6 @@ void CanvasWidget::recomputeSelectedIntersections() {
             addPt(points[pointSel[0]].positiom);
         }
     }
-    savePointsToFile();
     update();
 }
 
@@ -905,11 +894,11 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     QWidget::mousePressEvent(event);
 }
 
-bool CanvasWidget::loadPointsFromFile() {
-    if (storagePath.isEmpty()) {
+bool CanvasWidget::loadPointsFromFile(const QString &path) {
+    if (path.isEmpty()) {
         return false;
     }
-    QFile file(storagePath);
+    QFile file(path);
     if (!file.exists()) {
         return false;
     }
@@ -981,13 +970,6 @@ bool CanvasWidget::loadPointsFromFile() {
     return true;
 }
 
-bool CanvasWidget::savePointsToFile() const {
-    if (storagePath.isEmpty()) {
-        return false;
-    }
-    return writePointsToPath(storagePath);
-}
-
 bool CanvasWidget::writePointsToPath(const QString &path) const {
     if (path.isEmpty()) {
         return false;
@@ -1049,18 +1031,20 @@ bool CanvasWidget::loadFromFile(const QString &path) {
     if (path.isEmpty()) {
         return false;
     }
-    QString previousPath = storagePath;
-    storagePath = path;
-    if (loadPointsFromFile()) {
-        return true;
+    if (!loadPointsFromFile(path)) {
+        return false;
     }
-    storagePath = previousPath;
-    return false;
+    storagePath = path;
+    return true;
 }
 
 bool CanvasWidget::saveToFile(const QString &path) {
     if (path.isEmpty()) {
         return false;
     }
-    return writePointsToPath(path);
+    if (!writePointsToPath(path)) {
+        return false;
+    }
+    storagePath = path;
+    return true;
 }

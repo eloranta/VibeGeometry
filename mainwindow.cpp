@@ -16,7 +16,6 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QPointF>
-#include <QCoreApplication>
 #include <QDir>
 #include <QtMath>
 #include <QPrinter>
@@ -32,9 +31,7 @@ MainWindow::MainWindow(QWidget *parent)
     layout->setContentsMargins(16, 16, 16, 16);
     layout->setSpacing(12);
 
-    QDir appDir(QCoreApplication::applicationDirPath());
-    const QString storagePath = appDir.filePath("points.json");
-    canvas_ = new CanvasWidget(storagePath, central);
+    canvas_ = new CanvasWidget(QString(), central);
 
     layout->addWidget(canvas_, 1);
     pointCounter_ = canvas_->pointCount() + 1;

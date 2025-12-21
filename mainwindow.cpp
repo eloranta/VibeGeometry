@@ -11,6 +11,7 @@
 #include <QMenuBar>
 #include <QInputDialog>
 #include <QPushButton>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QStyle>
@@ -43,10 +44,14 @@ MainWindow::MainWindow(QWidget *parent)
     QMenu *fileMenu = menuBar()->addMenu(tr("File"));
     QAction *openAction = fileMenu->addAction(tr("Open..."));
     QAction *saveAsAction = fileMenu->addAction(tr("Save As..."));
+    QAction *openMacroAction = fileMenu->addAction(tr("Open Macro..."));
+    QAction *saveMacroAction = fileMenu->addAction(tr("Save Macro..."));
     fileMenu->addSeparator();
     QAction *printAction = fileMenu->addAction(tr("Print..."));
     connect(openAction, &QAction::triggered, this, &MainWindow::onOpenFileClicked);
     connect(saveAsAction, &QAction::triggered, this, &MainWindow::onSaveAsClicked);
+    connect(openMacroAction, &QAction::triggered, this, &MainWindow::onOpenMacroClicked);
+    connect(saveMacroAction, &QAction::triggered, this, &MainWindow::onSaveMacroClicked);
     connect(printAction, &QAction::triggered, this, &MainWindow::onPrintClicked);
 
     auto *controls = new QHBoxLayout();
@@ -253,6 +258,46 @@ void MainWindow::onSaveAsClicked() {
     } else if (recording_) {
         recordedCommands_.append(QStringLiteral("save:%1").arg(filePath));
     }
+}
+
+void MainWindow::onOpenMacroClicked() {
+    QString initial = lastScriptPath_.isEmpty() ? QDir::currentPath() : QFileInfo(lastScriptPath_).absolutePath();
+    QString filePath = QFileDialog::getOpenFileName(this, tr("Open Macro"), initial,
+                                                    tr("Macro Files (*.txt *.macro);;All Files (*.*)"));
+    if (filePath.isEmpty()) return;
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, tr("Open Macro"), tr("Could not open the macro file."));
+        return;
+    }
+    QStringList lines;
+    while (!file.atEnd()) {
+        QString line = QString::fromUtf8(file.readLine()).trimmed();
+        if (!line.isEmpty()) {
+            lines.append(line);
+        }
+    }
+    file.close();
+    recordedCommands_ = lines;
+    lastScriptPath_ = filePath;
+}
+
+void MainWindow::onSaveMacroClicked() {
+    QString initial = lastScriptPath_.isEmpty() ? QDir::currentPath() : lastScriptPath_;
+    QString filePath = QFileDialog::getSaveFileName(this, tr("Save Macro"), initial,
+                                                    tr("Macro Files (*.txt *.macro);;All Files (*.*)"));
+    if (filePath.isEmpty()) return;
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+        QMessageBox::warning(this, tr("Save Macro"), tr("Could not save the macro file."));
+        return;
+    }
+    QTextStream out(&file);
+    for (const auto &cmd : recordedCommands_) {
+        out << cmd << "\n";
+    }
+    file.close();
+    lastScriptPath_ = filePath;
 }
 
 void MainWindow::onRecordClicked() {

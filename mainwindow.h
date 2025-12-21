@@ -33,6 +33,8 @@ private:
     void onSaveAsClicked();
     void onRecordClicked();
     void onRunClicked();
+    void onOpenMacroClicked();
+    void onSaveMacroClicked();
     void onPointAdded(const QPointF &pt);
     void onPrintClicked();
 };

@@ -99,9 +99,25 @@ void MainWindow::onAddLineClicked() {
     }
     if (!canvas_->addLineBetweenSelected()) {
         QMessageBox::information(this, "Line Exists", "A line between those points already exists.");
+        return;
     }
     pointCounter_ = canvas_->pointCount() + 1;
-    if (recording_) recordedCommands_.append(QStringLiteral("addLine"));
+    if (recording_) {
+        QList<int> indices = canvas_->selectedPointsOrdered();
+        if (indices.size() < 2) {
+            indices = canvas_->selectedIndices();
+            std::sort(indices.begin(), indices.end());
+        }
+        if (indices.size() >= 2) {
+            QPointF a = canvas_->pointAt(indices[0]);
+            QPointF b = canvas_->pointAt(indices[1]);
+            recordedCommands_.append(QStringLiteral("addLine:%1,%2|%3,%4")
+                                         .arg(a.x(), 0, 'f', 8)
+                                         .arg(a.y(), 0, 'f', 8)
+                                         .arg(b.x(), 0, 'f', 8)
+                                         .arg(b.y(), 0, 'f', 8));
+        }
+    }
 }
 
 void MainWindow::onExtendLineClicked() {
@@ -135,16 +151,66 @@ void MainWindow::onAddCircleClicked() {
     }
     canvas_->addCircle(center, r);
     pointCounter_ = canvas_->pointCount() + 1;
-    if (recording_) recordedCommands_.append(QStringLiteral("addCircle"));
+    if (recording_) {
+        recordedCommands_.append(QStringLiteral("addCircle:%1,%2|%3,%4")
+                                     .arg(center.x(), 0, 'f', 8)
+                                     .arg(center.y(), 0, 'f', 8)
+                                     .arg(edge.x(), 0, 'f', 8)
+                                     .arg(edge.y(), 0, 'f', 8));
+    }
 }
 
 void MainWindow::onDeleteClicked() {
+    QString recordedCmd;
+    if (recording_) {
+        QStringList fields;
+        auto pts = canvas_->selectedPointPositions();
+        if (!pts.isEmpty()) {
+            QStringList entries;
+            for (const auto &p : pts) entries.append(QStringLiteral("%1,%2").arg(p.x(), 0, 'f', 8).arg(p.y(), 0, 'f', 8));
+            fields.append(QStringLiteral("P=%1").arg(entries.join("|")));
+        }
+        auto lines = canvas_->selectedLineEndpoints();
+        if (!lines.isEmpty()) {
+            QStringList entries;
+            for (const auto &l : lines) entries.append(QStringLiteral("%1,%2|%3,%4")
+                                                           .arg(l.first.x(), 0, 'f', 8)
+                                                           .arg(l.first.y(), 0, 'f', 8)
+                                                           .arg(l.second.x(), 0, 'f', 8)
+                                                           .arg(l.second.y(), 0, 'f', 8));
+            fields.append(QStringLiteral("L=%1").arg(entries.join("#")));
+        }
+        auto ext = canvas_->selectedExtendedLineEndpoints();
+        if (!ext.isEmpty()) {
+            QStringList entries;
+            for (const auto &l : ext) entries.append(QStringLiteral("%1,%2|%3,%4")
+                                                         .arg(l.first.x(), 0, 'f', 8)
+                                                         .arg(l.first.y(), 0, 'f', 8)
+                                                         .arg(l.second.x(), 0, 'f', 8)
+                                                         .arg(l.second.y(), 0, 'f', 8));
+            fields.append(QStringLiteral("E=%1").arg(entries.join("#")));
+        }
+        auto circs = canvas_->selectedCircleData();
+        if (!circs.isEmpty()) {
+            QStringList entries;
+            for (const auto &c : circs) entries.append(QStringLiteral("%1,%2,%3")
+                                                           .arg(c.first.x(), 0, 'f', 8)
+                                                           .arg(c.first.y(), 0, 'f', 8)
+                                                           .arg(c.second, 0, 'f', 8));
+            fields.append(QStringLiteral("C=%1").arg(entries.join("#")));
+        }
+        recordedCmd = QStringLiteral("deleteSelected");
+        if (!fields.isEmpty()) {
+            recordedCmd += QStringLiteral(";%1").arg(fields.join(";"));
+        }
+    }
+
     if (!canvas_->deleteSelected()) {
         QMessageBox::information(this, "Delete", "No selected objects to delete.");
         return;
     }
     pointCounter_ = canvas_->pointCount() + 1;
-    if (recording_) recordedCommands_.append(QStringLiteral("deleteSelected"));
+    if (recording_ && !recordedCmd.isEmpty()) recordedCommands_.append(recordedCmd);
 }
 
 void MainWindow::onDeleteAllClicked() {
@@ -219,14 +285,72 @@ void MainWindow::onRunClicked() {
     recording_ = false;
     for (int i = 0; i < recordedCommands_.size(); ++i) {
         const QString &cmd = recordedCommands_[i];
-        if (cmd == "addLine") {
-            onAddLineClicked();
-        } else if (cmd == "extendLines") {
+        if (cmd == "extendLines") {
             onExtendLineClicked();
         } else if (cmd == "addCircle") {
             onAddCircleClicked();
-        } else if (cmd == "deleteSelected") {
-            onDeleteClicked();
+        } else if (cmd.startsWith("deleteSelected")) {
+            canvas_->clearSelection();
+            QStringList parts = cmd.split(';');
+            if (parts.size() > 1) {
+                auto toPoint = [](const QString &s, bool &okOut) {
+                    const QStringList coords = s.split(',');
+                    bool ok1 = false, ok2 = false;
+                    double x = coords.value(0).toDouble(&ok1);
+                    double y = coords.value(1).toDouble(&ok2);
+                    okOut = ok1 && ok2;
+                    return QPointF(x, y);
+                };
+                for (int idx = 1; idx < parts.size(); ++idx) {
+                    const QString &field = parts[idx];
+                    if (field.startsWith("P=")) {
+                        const QStringList items = field.mid(2).split('|', Qt::SkipEmptyParts);
+                        for (const QString &it : items) {
+                            bool ok = false;
+                            QPointF p = toPoint(it, ok);
+                            if (ok) canvas_->selectPointByPosition(p, true);
+                        }
+                    } else if (field.startsWith("L=")) {
+                        const QStringList items = field.mid(2).split('#', Qt::SkipEmptyParts);
+                        for (const QString &it : items) {
+                            const QStringList pair = it.split('|');
+                            if (pair.size() == 2) {
+                                bool okA = false, okB = false;
+                                QPointF a = toPoint(pair[0], okA);
+                                QPointF b = toPoint(pair[1], okB);
+                                if (okA && okB) canvas_->selectLineByEndpoints(a, b, true);
+                            }
+                        }
+                    } else if (field.startsWith("E=")) {
+                        const QStringList items = field.mid(2).split('#', Qt::SkipEmptyParts);
+                        for (const QString &it : items) {
+                            const QStringList pair = it.split('|');
+                            if (pair.size() == 2) {
+                                bool okA = false, okB = false;
+                                QPointF a = toPoint(pair[0], okA);
+                                QPointF b = toPoint(pair[1], okB);
+                                if (okA && okB) canvas_->selectExtendedLineByEndpoints(a, b, true);
+                            }
+                        }
+                    } else if (field.startsWith("C=")) {
+                        const QStringList items = field.mid(2).split('#', Qt::SkipEmptyParts);
+                        for (const QString &it : items) {
+                            const QStringList partsC = it.split(',');
+                            if (partsC.size() == 3) {
+                                bool ok1 = false, ok2 = false, ok3 = false;
+                                double cx = partsC.value(0).toDouble(&ok1);
+                                double cy = partsC.value(1).toDouble(&ok2);
+                                double r = partsC.value(2).toDouble(&ok3);
+                                if (ok1 && ok2 && ok3) {
+                                    canvas_->selectCircleByCenterRadius(QPointF(cx, cy), r, true);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            canvas_->deleteSelected();
+            pointCounter_ = canvas_->pointCount() + 1;
         } else if (cmd == "deleteAll") {
             onDeleteAllClicked();
         } else if (cmd == "addNormal") {
@@ -255,6 +379,93 @@ void MainWindow::onRunClicked() {
         } else if (cmd.startsWith("save:")) {
             const QString path = cmd.mid(QStringLiteral("save:").size());
             canvas_->saveToFile(path);
+        } else if (cmd.startsWith("addNormal:")) {
+            const QString payload = cmd.mid(QStringLiteral("addNormal:").size());
+            const QStringList parts = payload.split(';');
+            if (parts.size() == 2) {
+                const QStringList lineParts = parts[0].split('|');
+                if (lineParts.size() == 2) {
+                    const auto toPt = [](const QString &s, bool &okOut) {
+                        const QStringList coords = s.split(',');
+                        bool ok1 = false, ok2 = false;
+                        double x = coords.value(0).toDouble(&ok1);
+                        double y = coords.value(1).toDouble(&ok2);
+                        okOut = ok1 && ok2;
+                        return QPointF(x, y);
+                    };
+                    bool okA = false, okB = false, okP = false;
+                    QPointF a = toPt(lineParts[0], okA);
+                    QPointF b = toPt(lineParts[1], okB);
+                    QPointF p = toPt(parts[1], okP);
+                    if (okA && okB && okP) {
+                        canvas_->clearSelection();
+                        bool selLine = canvas_->selectLineByEndpoints(a, b, false);
+                        bool selPoint = canvas_->selectPointByPosition(p, true);
+                        if (selLine && selPoint) {
+                            onIntersectClicked();
+                            pointCounter_ = canvas_->pointCount() + 1;
+                        }
+                    }
+                }
+            }
+        } else if (cmd.startsWith("addLine:")) {
+            const QString coords = cmd.mid(QStringLiteral("addLine:").size());
+            const QStringList pair = coords.split('|');
+            if (pair.size() == 2) {
+                const auto toPt = [](const QString &s, bool &okOut) {
+                    const QStringList parts = s.split(',');
+                    bool ok1 = false, ok2 = false;
+                    double x = parts.value(0).toDouble(&ok1);
+                    double y = parts.value(1).toDouble(&ok2);
+                    okOut = ok1 && ok2;
+                    return QPointF(x, y);
+                };
+                bool okA = false, okB = false;
+                QPointF a = toPt(pair[0], okA);
+                QPointF b = toPt(pair[1], okB);
+                if (okA && okB) {
+                    canvas_->clearSelection();
+                    bool selA = canvas_->selectPointByPosition(a, false);
+                    if (!selA) {
+                        canvas_->addPoint(a, QString(), false);
+                        selA = canvas_->selectPointByPosition(a, false);
+                    }
+                    bool selB = canvas_->selectPointByPosition(b, true);
+                    if (!selB) {
+                        canvas_->addPoint(b, QString(), true);
+                        selB = canvas_->selectPointByPosition(b, true);
+                    }
+                    if (selA && selB) {
+                        canvas_->addLineBetweenSelected();
+                        pointCounter_ = canvas_->pointCount() + 1;
+                    }
+                }
+            }
+        } else if (cmd.startsWith("addCircle:")) {
+            const QString coords = cmd.mid(QStringLiteral("addCircle:").size());
+            const QStringList pair = coords.split('|');
+            if (pair.size() == 2) {
+                const auto toPt = [](const QString &s, bool &okOut) {
+                    const QStringList parts = s.split(',');
+                    bool ok1 = false, ok2 = false;
+                    double x = parts.value(0).toDouble(&ok1);
+                    double y = parts.value(1).toDouble(&ok2);
+                    okOut = ok1 && ok2;
+                    return QPointF(x, y);
+                };
+                bool okA = false, okB = false;
+                QPointF a = toPt(pair[0], okA);
+                QPointF b = toPt(pair[1], okB);
+                if (okA && okB) {
+                    canvas_->clearSelection();
+                    bool selA = canvas_->selectPointByPosition(a, false);
+                    bool selB = canvas_->selectPointByPosition(b, true);
+                    if (selA && selB) {
+                        onAddCircleClicked();
+                        pointCounter_ = canvas_->pointCount() + 1;
+                    }
+                }
+            }
         }
         // 1s delay between commands during playback
         if (i + 1 < recordedCommands_.size()) {
@@ -282,7 +493,18 @@ void MainWindow::onIntersectClicked() {
         QMessageBox::information(this, "Intersect", "Could not add normal line.");
     } else {
         pointCounter_ = canvas_->pointCount() + 1;
-        if (recording_) recordedCommands_.append(QStringLiteral("addNormal"));
+        if (recording_) {
+            QPointF a, b;
+            if (canvas_->lineEndpointsAt(lineIdx, a, b)) {
+                recordedCommands_.append(QStringLiteral("addNormal:%1,%2|%3,%4;%5,%6")
+                                             .arg(a.x(), 0, 'f', 8)
+                                             .arg(a.y(), 0, 'f', 8)
+                                             .arg(b.x(), 0, 'f', 8)
+                                             .arg(b.y(), 0, 'f', 8)
+                                             .arg(p.x(), 0, 'f', 8)
+                                             .arg(p.y(), 0, 'f', 8));
+            }
+        }
     }
 }
 

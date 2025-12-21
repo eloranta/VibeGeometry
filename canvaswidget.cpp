@@ -194,6 +194,34 @@ std::pair<QPointF, QPointF> CanvasWidget::extendedLineEndpoints(const ExtendedLi
     return {line.a, line.b};
 }
 
+bool CanvasWidget::extendedLineEndpointsAt(int index, QPointF &a, QPointF &b) const {
+    if (index < 0 || index >= extendedLines.size()) {
+        return false;
+    }
+    a = extendedLines[index].a;
+    b = extendedLines[index].b;
+    return true;
+}
+
+bool CanvasWidget::lineEndpointsAt(int index, QPointF &a, QPointF &b) const {
+    if (index < 0 || index >= lines.size()) {
+        return false;
+    }
+    auto ends = lineEndpoints(lines[index]);
+    a = ends.first;
+    b = ends.second;
+    return true;
+}
+
+bool CanvasWidget::circleAt(int index, QPointF &center, double &radius) const {
+    if (index < 0 || index >= circles.size()) {
+        return false;
+    }
+    center = circles[index].center;
+    radius = circles[index].radius;
+    return true;
+}
+
 bool CanvasWidget::selectedPoint(QPointF &point) const {
     if (selectedPointIndices.isEmpty()) {
         return false;
@@ -425,6 +453,163 @@ void CanvasWidget::deleteAll() {
     selectedExtendedLineIndices.clear();
     selectedCircleIndices.clear();
     update();
+}
+
+void CanvasWidget::clearSelection() {
+    selectedPointIndices.clear();
+    selectedLineIndices.clear();
+    selectedExtendedLineIndices.clear();
+    selectedCircleIndices.clear();
+    pointSelectionOrder.clear();
+    update();
+}
+
+bool CanvasWidget::selectPointByPosition(const QPointF &pt, bool additive, double tol) {
+    if (!additive) {
+        clearSelection();
+    }
+    bool found = false;
+    double bestDist = std::numeric_limits<double>::max();
+    int bestIdx = -1;
+    for (int i = 0; i < points.size(); ++i) {
+        const auto &p = points[i].positiom;
+        double d = std::hypot(p.x() - pt.x(), p.y() - pt.y());
+        if (d <= tol && d < bestDist) {
+            bestDist = d;
+            bestIdx = i;
+        }
+    }
+    if (bestIdx >= 0) {
+        selectedPointIndices.insert(bestIdx);
+        pointSelectionOrder.removeAll(bestIdx);
+        pointSelectionOrder.append(bestIdx);
+        found = true;
+    } else if (tol < 1e-3) {
+        // Retry with looser tolerance to tolerate minor rounding differences during playback.
+        return selectPointByPosition(pt, additive, 1e-3);
+    }
+    if (found) update();
+    return found;
+}
+
+bool CanvasWidget::selectLineByEndpoints(const QPointF &a, const QPointF &b, bool additive, double tol) {
+    if (!additive) {
+        clearSelection();
+    }
+    auto close = [tol](const QPointF &p, const QPointF &q) {
+        return std::hypot(p.x() - q.x(), p.y() - q.y()) <= tol;
+    };
+    int bestIdx = -1;
+    for (int i = 0; i < lines.size(); ++i) {
+        auto [p1, p2] = lineEndpoints(lines[i]);
+        if ((close(p1, a) && close(p2, b)) || (close(p1, b) && close(p2, a))) {
+            bestIdx = i;
+            break;
+        }
+    }
+    if (bestIdx < 0 && tol < 1e-3) {
+        return selectLineByEndpoints(a, b, additive, 1e-3);
+    }
+    if (bestIdx >= 0) {
+        selectedLineIndices.insert(bestIdx);
+        update();
+        return true;
+    }
+    return false;
+}
+
+bool CanvasWidget::selectExtendedLineByEndpoints(const QPointF &a, const QPointF &b, bool additive, double tol) {
+    if (!additive) {
+        clearSelection();
+    }
+    auto close = [tol](const QPointF &p, const QPointF &q) {
+        return std::hypot(p.x() - q.x(), p.y() - q.y()) <= tol;
+    };
+    int bestIdx = -1;
+    for (int i = 0; i < extendedLines.size(); ++i) {
+        auto [p1, p2] = extendedLineEndpoints(extendedLines[i]);
+        if ((close(p1, a) && close(p2, b)) || (close(p1, b) && close(p2, a))) {
+            bestIdx = i;
+            break;
+        }
+    }
+    if (bestIdx < 0 && tol < 1e-3) {
+        return selectExtendedLineByEndpoints(a, b, additive, 1e-3);
+    }
+    if (bestIdx >= 0) {
+        selectedExtendedLineIndices.insert(bestIdx);
+        update();
+        return true;
+    }
+    return false;
+}
+
+bool CanvasWidget::selectCircleByCenterRadius(const QPointF &center, double radius, bool additive, double tol) {
+    if (!additive) {
+        clearSelection();
+    }
+    int bestIdx = -1;
+    double bestScore = std::numeric_limits<double>::max();
+    for (int i = 0; i < circles.size(); ++i) {
+        const auto &c = circles[i];
+        double dc = std::hypot(c.center.x() - center.x(), c.center.y() - center.y());
+        double dr = std::abs(c.radius - radius);
+        double score = dc + dr;
+        if (dc <= tol && dr <= tol && score < bestScore) {
+            bestScore = score;
+            bestIdx = i;
+        }
+    }
+    if (bestIdx < 0 && tol < 1e-3) {
+        return selectCircleByCenterRadius(center, radius, additive, 1e-3);
+    }
+    if (bestIdx >= 0) {
+        selectedCircleIndices.insert(bestIdx);
+        update();
+        return true;
+    }
+    return false;
+}
+
+QVector<QPointF> CanvasWidget::selectedPointPositions() const {
+    QVector<QPointF> out;
+    for (int idx : selectedPointIndices) {
+        if (idx >= 0 && idx < points.size()) {
+            out.append(points[idx].positiom);
+        }
+    }
+    return out;
+}
+
+QVector<QPair<QPointF, QPointF>> CanvasWidget::selectedLineEndpoints() const {
+    QVector<QPair<QPointF, QPointF>> out;
+    for (int idx : selectedLineIndices) {
+        if (idx >= 0 && idx < lines.size()) {
+            auto [p1, p2] = lineEndpoints(lines[idx]);
+            out.append({p1, p2});
+        }
+    }
+    return out;
+}
+
+QVector<QPair<QPointF, QPointF>> CanvasWidget::selectedExtendedLineEndpoints() const {
+    QVector<QPair<QPointF, QPointF>> out;
+    for (int idx : selectedExtendedLineIndices) {
+        if (idx >= 0 && idx < extendedLines.size()) {
+            out.append({extendedLines[idx].a, extendedLines[idx].b});
+        }
+    }
+    return out;
+}
+
+QVector<QPair<QPointF, double>> CanvasWidget::selectedCircleData() const {
+    QVector<QPair<QPointF, double>> out;
+    for (int idx : selectedCircleIndices) {
+        if (idx >= 0 && idx < circles.size()) {
+            out.append({circles[idx].center, circles[idx].radius});
+        }
+    }
+    return out;
 }
 
 void CanvasWidget::findIntersectionsForLine(int lineIndex) {

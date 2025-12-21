@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QPointF>
 
 class CanvasWidget;
 class QPushButton;

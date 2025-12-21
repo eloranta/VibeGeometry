@@ -6,6 +6,7 @@
 #include <QString>
 #include <QSet>
 #include <QMouseEvent>
+#include <QPair>
 
 class CanvasWidget : public QWidget {
     Q_OBJECT
@@ -26,6 +27,9 @@ public:
     int selectedExtendedLineIndex() const { return selectedExtendedLineIndices.isEmpty() ? -1 : *selectedExtendedLineIndices.constBegin(); }
     int selectedExtendedLineCount() const { return selectedExtendedLineIndices.size(); }
     QPointF pointAt(int index) const { return points.at(index).positiom; }
+    bool lineEndpointsAt(int index, QPointF &a, QPointF &b) const;
+    bool extendedLineEndpointsAt(int index, QPointF &a, QPointF &b) const;
+    bool circleAt(int index, QPointF &center, double &radius) const;
     bool setLabelForSelection(const QString &label);
     bool deleteSelected();
     void deleteAll();
@@ -38,6 +42,15 @@ public:
     bool loadFromFile(const QString &path);
     bool saveToFile(const QString &path);
     QString storageFilePath() const { return storagePath; }
+    void clearSelection();
+    bool selectPointByPosition(const QPointF &pt, bool additive = false, double tol = 1e-4);
+    bool selectLineByEndpoints(const QPointF &a, const QPointF &b, bool additive = false, double tol = 1e-4);
+    bool selectExtendedLineByEndpoints(const QPointF &a, const QPointF &b, bool additive = false, double tol = 1e-4);
+    bool selectCircleByCenterRadius(const QPointF &center, double radius, bool additive = false, double tol = 1e-4);
+    QVector<QPointF> selectedPointPositions() const;
+    QVector<QPair<QPointF, QPointF>> selectedLineEndpoints() const;
+    QVector<QPair<QPointF, QPointF>> selectedExtendedLineEndpoints() const;
+    QVector<QPair<QPointF, double>> selectedCircleData() const;
 
 signals:
     void pointAdded(const QPointF &point);
